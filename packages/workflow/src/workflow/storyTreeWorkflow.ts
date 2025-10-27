@@ -37,7 +37,8 @@ const parseTree = (raw: string, topic: string): StoryTree => {
   const sanitized = sanitizeJsonBlock(raw);
   try {
     const obj = JSON.parse(sanitized);
-    return storyTreeSchema.parse(obj) as StoryTree;
+    const parsed = storyTreeSchema.parse(obj) as StoryTree;
+    return { ...parsed, topic };
   } catch (error) {
     return FALLBACK_TREE(topic);
   }

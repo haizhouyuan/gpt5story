@@ -81,6 +81,7 @@ class StoryWorkflowEngineImpl implements StoryWorkflowEngine {
   }
 
   async invoke(requestInput: StoryWorkflowRequest): Promise<WorkflowExecutionResult> {
+    this.bus.clear();
     const request = validateRequest(requestInput);
     const ctx = prepareStageContext(request, this.bus, this.llm);
 

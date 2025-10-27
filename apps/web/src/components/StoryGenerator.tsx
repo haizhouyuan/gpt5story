@@ -48,6 +48,7 @@ const StoryGenerator = () => {
     setError(null);
     setLoading(true);
     setMeta(null);
+    setResponse(null);
     setEvents([]);
   };
 
@@ -74,6 +75,7 @@ const StoryGenerator = () => {
 
   const handleStream = () => {
     resetState();
+    eventSourceRef.current?.close();
     const params = new URLSearchParams({
       topic,
       historyContent,
