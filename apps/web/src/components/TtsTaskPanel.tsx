@@ -4,9 +4,11 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:4000';
 
 interface TtsTask {
   id: string;
-  status: 'pending' | 'completed' | 'error';
+  status: 'pending' | 'success' | 'error';
+  provider?: string;
+  durationMs?: number;
   audioUrl?: string;
-  message?: string;
+  error?: string;
 }
 
 const TtsTaskPanel = () => {
@@ -62,12 +64,14 @@ const TtsTaskPanel = () => {
         <div className="result">
           <h3>任務 {task.id}</h3>
           <p>狀態：{task.status}</p>
+          {task.provider && <p>Provider：{task.provider}</p>}
+          {typeof task.durationMs === 'number' && <p>推算時長：{task.durationMs} ms</p>}
           {task.audioUrl && (
             <audio controls src={task.audioUrl}>
               <track kind="captions" />
             </audio>
           )}
-          {task.message && <p className="info">{task.message}</p>}
+          {task.error && <p className="error">{task.error}</p>}
         </div>
       )}
     </section>

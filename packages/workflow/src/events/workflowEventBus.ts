@@ -20,7 +20,7 @@ export class WorkflowEventBus {
   emit(event: WorkflowStageEvent) {
     const payload = { ...event, timestamp: event.timestamp ?? new Date().toISOString() };
     this.events.push(payload);
-    this.listeners.forEach((listener) => {
+    [...this.listeners].forEach((listener) => {
       try {
         listener(payload);
       } catch (error) {
@@ -39,5 +39,11 @@ export class WorkflowEventBus {
 
   subscribe(listener: WorkflowEventListener) {
     this.listeners.push(listener);
+    let active = true;
+    return () => {
+      if (!active) return;
+      active = false;
+      this.listeners = this.listeners.filter((item) => item !== listener);
+    };
   }
 }

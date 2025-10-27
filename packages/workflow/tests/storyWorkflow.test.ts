@@ -17,6 +17,9 @@ describe('story workflow pipeline', () => {
     expect(execution.response.traceId).toBeDefined();
     expect(execution.outline.acts.length).toBeGreaterThan(0);
     expect(execution.events.length).toBeGreaterThan(0);
+    expect(execution.stageStates).toHaveLength(4);
+    expect(execution.stageStates.every((stage) => stage.status !== 'pending')).toBe(true);
+    expect(execution.telemetry.stages.length).toBeGreaterThan(0);
   });
 
   it('truncates memory when history is long', async () => {

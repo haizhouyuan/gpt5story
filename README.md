@@ -28,6 +28,8 @@ npm install
 # 產生 .env 並設定：
 # OPENROUTER_API_KEY=...
 # MONGODB_URI=mongodb://localhost:27017
+# TENCENT_SECRET_ID=...
+# TENCENT_SECRET_KEY=...
 # （更多環境變數參考 docs/StoryApp-阶段进展.md）
 
 # 啟動後端
@@ -52,5 +54,22 @@ npm run build
 - **語音任務**：模擬 TTS 任務列隊（`/api/tts/tasks`）。
 - **Mongo 持久化**：故事快照、工作流執行紀錄、模型配置（`/api/models`）。
 - **內容安全與限流**：敏感詞過濾、輸出審查、`express-rate-limit`。
+
+### 控制臺分頁
+
+- **互動故事**：呼叫 `/api/generate-story`（同步或 SSE）並展示審校、驗證、修訂摘要。
+- **故事樹**：調用 `/api/generate-full-story` 查看分支結構。
+- **語音任務**：建立 `/api/tts/tasks` 並輪詢結果。
+- **工作流監控**：
+  - 列表：`GET /api/workflows`
+  - 建立：`POST /api/workflows`
+  - 重新執行：`POST /api/workflows/:traceId/retry`
+  - 遙測明細：`GET /api/workflows/:traceId/stage-activity`
+  - 詳情包含 Outline、Draft、Validation、Revision Summary 與 Stage Telemetry。
+
+### Tencent TTS
+
+- 若設置 `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY`，後端將啟用腾讯云語音合成；未配置時自動回退為 Mock Provider。
+- 相關參數（語速、聲線、采樣率等）詳見 `docs/tencent-tts.md`，可透過 `TTS_VOICE_TYPE`、`TTS_SAMPLE_RATE`、`TTS_CODEC`、`TENCENT_REGION` 覆蓋預設。
 
 更多背景與設計詳見 `docs/StoryApp 现状分析与基于 LangChain 的重构方案.md` 及更新記錄 `docs/StoryApp-阶段进展.md`。

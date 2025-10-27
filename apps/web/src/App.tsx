@@ -2,9 +2,10 @@ import { useState } from 'react';
 import StoryGenerator from './components/StoryGenerator';
 import StoryTreeViewer from './components/StoryTreeViewer';
 import TtsTaskPanel from './components/TtsTaskPanel';
+import WorkflowMonitor from './components/WorkflowMonitor';
 
 const App = () => {
-  const [activeTab, setActiveTab] = useState<'interactive' | 'tree' | 'tts'>('interactive');
+  const [activeTab, setActiveTab] = useState<'interactive' | 'tree' | 'tts' | 'workflow'>('interactive');
 
   return (
     <div className="app">
@@ -33,6 +34,13 @@ const App = () => {
           >
             語音任務
           </button>
+          <button
+            type="button"
+            className={activeTab === 'workflow' ? 'active' : ''}
+            onClick={() => setActiveTab('workflow')}
+          >
+            工作流監控
+          </button>
         </nav>
       </header>
 
@@ -40,6 +48,7 @@ const App = () => {
         {activeTab === 'interactive' && <StoryGenerator />}
         {activeTab === 'tree' && <StoryTreeViewer />}
         {activeTab === 'tts' && <TtsTaskPanel />}
+        {activeTab === 'workflow' && <WorkflowMonitor />}
       </main>
 
       <footer className="app__footer">

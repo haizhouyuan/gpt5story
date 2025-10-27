@@ -1,8 +1,7 @@
 import { v4 as uuid } from 'uuid';
-import type { StoryOutlinePlan } from '@gpt5story/shared';
+import type { StoryOutlinePlan, DetectiveOutline } from '@gpt5story/shared';
 import { storyOutlinePlanSchema } from '@gpt5story/shared';
 import { buildPlanningPrompt } from '../../prompts/storyPrompts.js';
-import { WorkflowEventBus } from '../../events/workflowEventBus.js';
 import type { BaseStageContext, Stage1Result } from './types.js';
 import { sanitizeJsonBlock } from '../utils.js';
 
@@ -43,6 +42,55 @@ const FALLBACK_OUTLINE = (topic: string): StoryOutlinePlan => ({
   ],
 });
 
+const toDetectiveOutline = (plan: StoryOutlinePlan): DetectiveOutline => {
+  const acts = plan.acts.map((act, actIndex) => ({
+    act: actIndex + 1,
+    focus: act.title,
+    beats: act.beats.map((summary, beatIndex) => ({
+      beat: beatIndex + 1,
+      summary,
+      cluesRevealed: beatIndex === 0 && plan.clues.length > 0
+        ? plan.clues.map((clue) => clue.description)
+        : undefined,
+    })),
+    payoff: act.summary,
+  }));
+
+  const clueMatrix = plan.clues.map((clue) => ({
+    clue: clue.description,
+    surfaceMeaning: clue.foreshadowingBeat,
+    realMeaning: clue.payoff,
+    appearsAtAct: acts.length ? Math.min(acts.length, 2) : undefined,
+    isRedHerring: false,
+  }));
+
+  const redHerrings = plan.misdirections.map((item) => ({
+    clue: item.description,
+    surfaceMeaning: item.technique,
+    realMeaning: item.resolution,
+    isRedHerring: true,
+  }));
+
+  return {
+    centralTrick: {
+      summary: plan.topic,
+      mechanism: plan.tone,
+      fairnessNotes: plan.clues.map((clue) => clue.payoff),
+    },
+    acts,
+    clueMatrix: [...clueMatrix, ...redHerrings],
+    fairnessNotes: plan.clues.map((clue) => `線索 ${clue.id} 的回收：${clue.payoff}`),
+    themes: plan.tone ? [plan.tone] : undefined,
+    logicChecklist: plan.misdirections.map((item) => `誤導：${item.description}`),
+    chapterAnchors: acts.flatMap((act) =>
+      act.beats.map((beat) => ({
+        chapter: `${act.act}-${beat.beat}`,
+        label: beat.summary,
+      })),
+    ),
+  };
+};
+
 const parseOutline = (raw: string, topic: string): StoryOutlinePlan => {
   const sanitized = sanitizeJsonBlock(raw);
   try {
@@ -71,7 +119,7 @@ export const runStage1Planning = async (
     const outline = parseOutline(outlineRaw, request.topic);
     const narrativeBrief = outline.acts.map((act) => `${act.title}: ${act.summary}`).join('\n');
     bus.emit({ stage: 'planning', status: 'success', timestamp: new Date().toISOString(), meta: { acts: outline.acts.length } });
-    return { outline, narrativeBrief };
+    return { outline, narrativeBrief, detectiveOutline: toDetectiveOutline(outline) };
   } catch (error) {
     bus.emit({
       stage: 'planning',
@@ -80,6 +128,10 @@ export const runStage1Planning = async (
       message: error instanceof Error ? error.message : String(error),
     });
     const outline = FALLBACK_OUTLINE(request.topic);
-    return { outline, narrativeBrief: outline.acts.map((act) => act.summary).join('\n') };
+    return {
+      outline,
+      narrativeBrief: outline.acts.map((act) => act.summary).join('\n'),
+      detectiveOutline: toDetectiveOutline(outline),
+    };
   }
 };

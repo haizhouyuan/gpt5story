@@ -1,4 +1,13 @@
-import type { StoryOutlinePlan, StoryReviewNote, StoryRevisionPlan } from '@gpt5story/shared';
+import type {
+  StoryOutlinePlan,
+  StoryReviewNote,
+  StoryRevisionPlan,
+  DetectiveOutline,
+  StoryDraft,
+  ValidationReport,
+  RevisionPlanSummary,
+  WorkflowStageState,
+} from '@gpt5story/shared';
 import type { Collection } from 'mongodb';
 import { getCollection } from '../config/db.js';
 
@@ -7,9 +16,15 @@ export interface WorkflowExecutionRecord {
   topic: string;
   createdAt: string;
   outline: StoryOutlinePlan;
+  detectiveOutline?: DetectiveOutline;
+  draft?: StoryDraft;
   reviewNotes: StoryReviewNote[];
+  validationReport?: ValidationReport;
   revisionPlan: StoryRevisionPlan;
+  revisionSummary?: RevisionPlanSummary;
+  stageStates?: WorkflowStageState[];
   events: Array<{ stage: string; status: string; timestamp: string; meta?: Record<string, unknown>; message?: string }>;
+  telemetry?: Record<string, unknown>;
   storyTree?: import('@gpt5story/shared').StoryTree;
 }
 

@@ -5,6 +5,13 @@ import type {
   StoryOutlinePlan,
   StoryReviewNote,
   StoryRevisionPlan,
+  DetectiveOutline,
+  StoryDraft,
+  ValidationReport,
+  RevisionPlanSummary,
+  WorkflowStageState,
+  WorkflowTelemetry,
+  StageLog,
 } from '@gpt5story/shared';
 import { storyWorkflowRequestSchema } from '@gpt5story/shared';
 import { buildMemoryContext } from '../memory/storyMemory.js';
@@ -54,8 +61,14 @@ const prepareStageContext = (
 export interface WorkflowExecutionResult {
   response: StoryWorkflowResponse;
   outline: StoryOutlinePlan;
+  detectiveOutline: DetectiveOutline;
+  draft: StoryDraft;
   reviewNotes: StoryReviewNote[];
+  validationReport: ValidationReport;
   revisionPlan: StoryRevisionPlan;
+  revisionSummary: RevisionPlanSummary;
+  stageStates: WorkflowStageState[];
+  telemetry: WorkflowTelemetry;
   events: WorkflowStageEvent[];
 }
 
@@ -84,22 +97,71 @@ class StoryWorkflowEngineImpl implements StoryWorkflowEngine {
     this.bus.clear();
     const request = validateRequest(requestInput);
     const ctx = prepareStageContext(request, this.bus, this.llm);
+    const stageSequence: WorkflowStageEvent['stage'][] = ['planning', 'drafting', 'review', 'revision'];
+    const stageStates: WorkflowStageState[] = stageSequence.map((stage) => ({
+      stage,
+      status: 'pending',
+    }));
+    const stageLogs: StageLog[] = [];
+    const stageTimers = new Map<string, number>();
+
+    const unsubscribe = this.bus.subscribe((event) => {
+      const state = stageStates.find((item) => item.stage === event.stage);
+      if (!state) {
+        return;
+      }
+      if (event.status === 'start') {
+        state.status = 'running';
+        state.startedAt = event.timestamp;
+        stageTimers.set(event.stage, Number.isNaN(Date.parse(event.timestamp)) ? Date.now() : Date.parse(event.timestamp));
+        return;
+      }
+      state.status = event.status === 'error' ? 'failed' : 'completed';
+      state.finishedAt = event.timestamp;
+      if (state.status === 'failed') {
+        state.errorMessage = event.message;
+      }
+      const startMs = stageTimers.get(event.stage)
+        ?? (state.startedAt ? (Number.isNaN(Date.parse(state.startedAt)) ? Date.now() : Date.parse(state.startedAt)) : Date.now());
+      const endMs = Number.isNaN(Date.parse(event.timestamp)) ? Date.now() : Date.parse(event.timestamp);
+      const durationMs = Math.max(endMs - startMs, 0);
+      stageTimers.delete(event.stage);
+
+      stageLogs.push({
+        stage: event.stage,
+        stageId: event.stage,
+        durationMs,
+        notes: event.message ? [event.message] : undefined,
+        meta: event.meta,
+        timestamp: event.timestamp,
+      });
+    });
 
     const stage1 = await runStage1Planning(ctx);
     const stage2 = await runStage2Drafting(ctx, stage1);
     const stage3 = await runStage3Review(ctx, stage1, stage2);
     const stage4 = await runStage4Revision(ctx, stage2, stage3);
+    unsubscribe();
 
     const response: StoryWorkflowResponse = {
       segment: stage4.finalSegment,
       traceId: ctx.traceId,
     };
+    const telemetry: WorkflowTelemetry = {
+      stages: stageLogs,
+    };
 
     return {
       response,
       outline: stage1.outline,
+      detectiveOutline: stage1.detectiveOutline,
+      draft: stage2.draft,
       reviewNotes: stage3.reviewNotes,
+      validationReport: stage3.validationReport,
       revisionPlan: stage4.revisionPlan,
+      revisionSummary: stage4.revisionSummary,
+      stageStates,
+      telemetry,
       events: this.bus.list(),
     };
   }

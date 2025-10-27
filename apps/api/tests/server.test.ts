@@ -81,6 +81,8 @@ describe('API routes', () => {
       .send({ text: '請轉換成語音的句子。' });
     expect(res.status).toBe(200);
     expect(res.body.data.audioUrl).toMatch(/^data:audio\//);
+    expect(res.body.data.provider).toBeDefined();
+    expect(res.body.data.durationMs).toBeGreaterThan(0);
   });
 
   it('lists workflows and model configuration', async () => {
@@ -101,6 +103,27 @@ describe('API routes', () => {
       .send({ planningModel: 'custom/planning', temperaturePlanning: 0.3 });
     expect(updated.status).toBe(200);
     expect(updated.body.data.planningModel).toBe('custom/planning');
+  });
+
+  it('creates and retries workflow via management endpoints', async () => {
+    const createRes = await request(app)
+      .post('/api/workflows')
+      .send({ topic: '管理端測試', turnIndex: 0, historyContent: '' });
+    expect(createRes.status).toBe(201);
+    expect(createRes.body.success).toBe(true);
+    const traceId = createRes.body.data.traceId as string;
+    expect(traceId).toBeDefined();
+    expect(createRes.body.meta.stageStates.length).toBeGreaterThan(0);
+
+    const activityRes = await request(app).get(`/api/workflows/${traceId}/stage-activity`);
+    expect(activityRes.status).toBe(200);
+    expect(activityRes.body.data.stageStates.length).toBeGreaterThan(0);
+
+    const retryRes = await request(app)
+      .post(`/api/workflows/${traceId}/retry`)
+      .send({ historyContent: '', turnIndex: 0 });
+    expect(retryRes.status).toBe(201);
+    expect(retryRes.body.meta.retriedFrom).toBe(traceId);
   });
 
   it('rejects banned topics', async () => {
@@ -131,5 +154,10 @@ describe('API routes', () => {
     const taskId = createRes.body.data.id;
     const status1 = await request(app).get(`/api/tts/tasks/${taskId}`);
     expect(status1.body.data.status).toBeDefined();
+    if (status1.body.data.status === 'pending') {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const status2 = await request(app).get(`/api/tts/tasks/${taskId}`);
+      expect(['success', 'error', 'pending']).toContain(status2.body.data.status);
+    }
   });
 });

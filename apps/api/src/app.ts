@@ -12,7 +12,7 @@ import {
   type StorySnapshot,
   type StoryWorkflowRequest,
 } from '@gpt5story/shared';
-import { createStoryWorkflow, createStoryTreeWorkflow } from '@gpt5story/workflow';
+import { createStoryWorkflow, createStoryTreeWorkflow, type WorkflowExecutionResult } from '@gpt5story/workflow';
 import { v4 as uuid } from 'uuid';
 import {
   insertStory,
@@ -32,7 +32,8 @@ import {
 import {
   createTtsTask,
   getTtsTask,
-} from './services/ttsTaskService.js';
+  synthesizeSync,
+} from './services/tts/index.js';
 
 export interface CreateAppOptions {
   cors?: CorsOptions;
@@ -41,6 +42,37 @@ export interface CreateAppOptions {
 export const createApp = (options: CreateAppOptions = {}) => {
   const app = express();
   const storyStore = new Map<string, StorySnapshot>();
+
+  const persistWorkflowExecution = async (
+    topic: string,
+    traceId: string,
+    execution: WorkflowExecutionResult,
+  ) => {
+    await insertExecution({
+      traceId,
+      topic,
+      createdAt: new Date().toISOString(),
+      outline: execution.outline,
+      detectiveOutline: execution.detectiveOutline,
+      draft: execution.draft,
+      reviewNotes: execution.reviewNotes,
+      validationReport: execution.validationReport,
+      revisionPlan: execution.revisionPlan,
+      revisionSummary: execution.revisionSummary,
+      stageStates: execution.stageStates,
+      events: execution.events,
+      telemetry: execution.telemetry,
+    });
+  };
+
+  const executeWorkflow = async (payload: StoryWorkflowRequest) => {
+    const workflow = createStoryWorkflow();
+    const execution = await workflow.invoke(payload);
+    const parsed = storyWorkflowResponseSchema.parse(execution.response);
+    const traceId = parsed.traceId ?? uuid();
+    await persistWorkflowExecution(payload.topic, traceId, execution);
+    return { traceId, parsed, execution } as const;
+  };
 
   const generateLimiter = rateLimit({
     windowMs: 60 * 1000,
@@ -76,29 +108,21 @@ export const createApp = (options: CreateAppOptions = {}) => {
     }
 
     try {
-      const workflow = createStoryWorkflow();
-      const execution = await workflow.invoke(payload);
-      const parsed = storyWorkflowResponseSchema.parse(execution.response);
-
-      const traceId = parsed.traceId ?? uuid();
-
-      await insertExecution({
-        traceId,
-        topic: payload.topic,
-        createdAt: new Date().toISOString(),
-        outline: execution.outline,
-        reviewNotes: execution.reviewNotes,
-        revisionPlan: execution.revisionPlan,
-        events: execution.events,
-      });
+      const { traceId, parsed, execution } = await executeWorkflow(payload);
 
       return res.json({
         success: true,
         data: { ...parsed, traceId },
         meta: {
           outline: execution.outline,
+          detectiveOutline: execution.detectiveOutline,
+          draft: execution.draft,
           reviewNotes: execution.reviewNotes,
           revisionPlan: execution.revisionPlan,
+          revisionSummary: execution.revisionSummary,
+          validationReport: execution.validationReport,
+          stageStates: execution.stageStates,
+          telemetry: execution.telemetry,
           events: execution.events,
         },
       });
@@ -143,16 +167,22 @@ export const createApp = (options: CreateAppOptions = {}) => {
     try {
       const execution = await workflow.invoke(payload);
       const traceId = execution.response.traceId ?? uuid();
-      await insertExecution({
-        traceId,
-        topic: payload.topic,
-        createdAt: new Date().toISOString(),
-        outline: execution.outline,
-        reviewNotes: execution.reviewNotes,
-        revisionPlan: execution.revisionPlan,
-        events: execution.events,
-      });
-      res.write(`data: ${JSON.stringify({ type: 'result', data: { ...execution.response, traceId }, meta: { outline: execution.outline, reviewNotes: execution.reviewNotes, revisionPlan: execution.revisionPlan } })}\n\n`);
+      await persistWorkflowExecution(payload.topic, traceId, execution);
+      res.write(`data: ${JSON.stringify({
+        type: 'result',
+        data: { ...execution.response, traceId },
+        meta: {
+          outline: execution.outline,
+          detectiveOutline: execution.detectiveOutline,
+          draft: execution.draft,
+          reviewNotes: execution.reviewNotes,
+          revisionPlan: execution.revisionPlan,
+          revisionSummary: execution.revisionSummary,
+          validationReport: execution.validationReport,
+          stageStates: execution.stageStates,
+          telemetry: execution.telemetry,
+        },
+      })}\n\n`);
       res.write('event: end\n');
       res.write('data: done\n\n');
     } catch (error) {
@@ -187,6 +217,88 @@ export const createApp = (options: CreateAppOptions = {}) => {
     }
     const response = saveStoryResponseSchema.parse({ id, createdAt });
     return res.status(201).json({ success: true, data: response });
+  });
+
+  app.post('/api/workflows', generateLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    const parseResult = storyWorkflowRequestSchema.safeParse(req.body ?? {});
+    if (!parseResult.success) {
+      return res.status(400).json({ success: false, error: 'INVALID_REQUEST', details: parseResult.error.flatten() });
+    }
+    const payload = parseResult.data;
+    if (containsBannedKeyword(payload.topic)) {
+      return res.status(400).json({ success: false, error: 'CONTENT_VIOLATION', message: 'topic_contains_restricted_content' });
+    }
+    try {
+      const { traceId, parsed, execution } = await executeWorkflow(payload);
+      return res.status(201).json({
+        success: true,
+        data: { ...parsed, traceId },
+        meta: {
+          outline: execution.outline,
+          detectiveOutline: execution.detectiveOutline,
+          draft: execution.draft,
+          reviewNotes: execution.reviewNotes,
+          revisionPlan: execution.revisionPlan,
+          revisionSummary: execution.revisionSummary,
+          validationReport: execution.validationReport,
+          stageStates: execution.stageStates,
+          telemetry: execution.telemetry,
+          events: execution.events,
+        },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, error: 'INVALID_RESPONSE', details: error.flatten() });
+      }
+      return next(error);
+    }
+  });
+
+  app.post('/api/workflows/:traceId/retry', generateLimiter, async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const existing = await getExecutionByTraceId(req.params.traceId);
+      if (!existing) {
+        return res.status(404).json({ success: false, error: 'WORKFLOW_NOT_FOUND' });
+      }
+      const candidatePayload = {
+        topic: existing.topic,
+        historyContent: req.body?.historyContent ?? '',
+        selectedChoice: req.body?.selectedChoice,
+        turnIndex: req.body?.turnIndex ?? 0,
+        maxTurns: req.body?.maxTurns,
+      };
+      const parseResult = storyWorkflowRequestSchema.safeParse(candidatePayload);
+      if (!parseResult.success) {
+        return res.status(400).json({ success: false, error: 'INVALID_REQUEST', details: parseResult.error.flatten() });
+      }
+      const payload = parseResult.data;
+      if (containsBannedKeyword(payload.topic)) {
+        return res.status(400).json({ success: false, error: 'CONTENT_VIOLATION', message: 'topic_contains_restricted_content' });
+      }
+      const { traceId, parsed, execution } = await executeWorkflow(payload);
+      return res.status(201).json({
+        success: true,
+        data: { ...parsed, traceId },
+        meta: {
+          outline: execution.outline,
+          detectiveOutline: execution.detectiveOutline,
+          draft: execution.draft,
+          reviewNotes: execution.reviewNotes,
+          revisionPlan: execution.revisionPlan,
+          revisionSummary: execution.revisionSummary,
+          validationReport: execution.validationReport,
+          stageStates: execution.stageStates,
+          telemetry: execution.telemetry,
+          events: execution.events,
+          retriedFrom: existing.traceId,
+        },
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, error: 'INVALID_REQUEST', details: error.flatten() });
+      }
+      return next(error);
+    }
   });
 
   app.get('/api/get-stories', async (_req: Request, res: Response) => {
@@ -247,6 +359,24 @@ export const createApp = (options: CreateAppOptions = {}) => {
         return res.status(404).json({ success: false, error: 'WORKFLOW_NOT_FOUND' });
       }
       return res.json({ success: true, data: execution });
+    } catch (error) {
+      return res.status(503).json({ success: false, error: 'WORKFLOW_STORAGE_UNAVAILABLE', message: (error as Error)?.message });
+    }
+  });
+
+  app.get('/api/workflows/:traceId/stage-activity', async (req: Request, res: Response) => {
+    try {
+      const execution = await getExecutionByTraceId(req.params.traceId);
+      if (!execution) {
+        return res.status(404).json({ success: false, error: 'WORKFLOW_NOT_FOUND' });
+      }
+      return res.json({
+        success: true,
+        data: {
+          stageStates: execution.stageStates ?? [],
+          telemetry: execution.telemetry ?? { stages: [] },
+        },
+      });
     } catch (error) {
       return res.status(503).json({ success: false, error: 'WORKFLOW_STORAGE_UNAVAILABLE', message: (error as Error)?.message });
     }
@@ -322,32 +452,43 @@ export const createApp = (options: CreateAppOptions = {}) => {
     }
   });
 
-  app.post('/api/tts', (req: Request, res: Response) => {
+  app.post('/api/tts', async (req: Request, res: Response) => {
     const parsed = ttsSynthesisRequestSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ success: false, error: 'INVALID_REQUEST', details: parsed.error.flatten() });
     }
-
-    // 模擬音頻輸出：實際上應該調用 TTS 服務
-    const fakeAudioData = Buffer.from('Simulated audio output for demo', 'utf8').toString('base64');
-    const audioUrl = `data:audio/mpeg;base64,${fakeAudioData}`;
-    const synthResponse = ttsSynthesisResponseSchema.parse({
-      audioUrl,
-      format: 'audio/mpeg',
-      durationMs: Math.max(1000, parsed.data.text.length * 50),
-      provider: 'mock-tts',
-    });
-
-    return res.json({ success: true, data: synthResponse });
+    try {
+      const result = await synthesizeSync({
+        text: parsed.data.text,
+        voiceId: parsed.data.voiceId,
+        speed: parsed.data.speed,
+        pitch: parsed.data.pitch,
+        format: 'mp3',
+      });
+      const synthResponse = ttsSynthesisResponseSchema.parse({
+        audioUrl: result.audioUrl,
+        format: result.format === 'mp3' ? 'audio/mpeg' : 'audio/pcm',
+        durationMs: result.durationMs ?? Math.max(1000, parsed.data.text.length * 45),
+        provider: result.provider,
+        traceId: result.requestId,
+      });
+      return res.json({ success: true, data: synthResponse });
+    } catch (error) {
+      return res.status(503).json({ success: false, error: 'TTS_SYNTHESIS_FAILED', message: (error as Error)?.message ?? 'unexpected_error' });
+    }
   });
 
   app.get('/api/tts/voices', (_req: Request, res: Response) => {
+    const capabilities = getTtsManager().getCapabilities();
     return res.json({
       success: true,
-      data: [
-        { id: 'mock-child-soft', name: '童趣柔和', gender: 'female', language: 'zh-CN' },
-        { id: 'mock-storyteller', name: '故事講述者', gender: 'male', language: 'zh-CN' },
-      ],
+      data: capabilities.voices,
+      meta: {
+        speedRange: capabilities.speedRange,
+        pitchRange: capabilities.pitchRange,
+        formats: capabilities.formats,
+        defaultVoice: capabilities.defaultVoice,
+      },
     });
   });
 
@@ -356,7 +497,7 @@ export const createApp = (options: CreateAppOptions = {}) => {
     if (!parsed.success) {
       return res.status(400).json({ success: false, error: 'INVALID_REQUEST', details: parsed.error.flatten() });
     }
-    const task = createTtsTask(parsed.data.text);
+    const task = createTtsTask({ text: parsed.data.text, voiceId: parsed.data.voiceId, speed: parsed.data.speed, pitch: parsed.data.pitch });
     return res.status(202).json({ success: true, data: task });
   });
 
