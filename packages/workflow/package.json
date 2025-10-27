@@ -1,0 +1,28 @@
+{
+  "name": "@gpt5story/workflow",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@gpt5story/shared": "*",
+    "langchain": "^0.2.4",
+    "@langchain/langgraph": "^0.1.2",
+    "@langchain/core": "^0.2.23",
+    "zod": "^3.23.8",
+    "uuid": "^9.0.1",
+    "p-retry": "^6.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  },
+  "peerDependencies": {
+    "@gpt5story/shared": "^0.1.0"
+  }
+}

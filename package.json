@@ -1,0 +1,31 @@
+{
+  "name": "gpt5story",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "npm@10.8.1",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json && npm run build -w @gpt5story/web",
+    "clean": "rimraf dist && rimraf packages/*/dist && rimraf apps/*/dist",
+    "lint": "npm run lint -w @gpt5story/web",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.4",
+    "@types/node": "^24.9.1",
+    "@types/supertest": "^6.0.3",
+    "rimraf": "^5.0.5",
+    "supertest": "^7.1.4",
+    "typescript": "^5.4.5",
+    "vitest": "^4.0.3"
+  },
+  "dependencies": {
+    "express-rate-limit": "^8.1.0",
+    "mongodb": "^6.20.0",
+    "mongodb-memory-server": "^10.2.3"
+  }
+}
