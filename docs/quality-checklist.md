@@ -3,28 +3,24 @@
 ## 自動化覆蓋
 
 - `npm test`：
-  - `packages/workflow/tests/storyWorkflow.test.ts` 驗證四階段工作流輸出、遙測與階段狀態。
-  - `apps/api/tests/server.test.ts` 覆蓋故事 API、管理端工作流端點、TTS 同步/任務流程。
+  - `packages/workflow/tests/storyWorkflow.test.ts` 驗證故事工作流輸出的基本結構。
+  - `apps/api/tests/server.test.ts` 覆蓋 `/api/health` 與 `/api/generate-story`。
 - `npm run lint -w @gpt5story/web`：前端 TypeScript 型別檢查。
 
 ## 手動回歸建議
 
 1. 後端
-   - 設置 `.env`：`OPENROUTER_API_KEY`（或 OPENAI key）、`MONGODB_URI`。
-   - 如需真實語音合成：補充 `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY`，確認 `POST /api/tts` 回傳 provider=`tencent`。
+   - 設置 `.env`：`OPENROUTER_API_KEY`（或 OPENAI key）。
+   - 啟動 `PORT=4000 npm run dev -w @gpt5story/api` 後，確認 `GET /api/health` 以及 `POST /api/generate-story` 正常。
 2. 前端
-   - `npm run dev -w @gpt5story/api`、`npm run dev -w @gpt5story/web -- --host 0.0.0.0 --port 8703`。
-   - 互動故事：測試同步與 SSE 生成，檢視遙測/修訂摘要。
-   - 工作流監控：建立工作流、查看 Stage Activity、使用「重新執行」並確認列表刷新。
-   - TTS 任務：建立任務、輪詢至完成並播放音訊。
+   - `npm run dev -w @gpt5story/web -- --host 0.0.0.0 --port 8703`。
+   - 透過介面輸入多個主題，檢查故事內容與大綱/修訂建議是否同步更新。
 3. 部署
-   - 確保 `TTS_AUDIO_BASE_URL` 指向可公開的靜態資源服務（預設 data URL 亦可）。
    - 建議在 CI 中執行 `npm test` 與 `npm run lint -w @gpt5story/web`。
 
 ## 風險與緩解
 
-- **腾讯雲配額耗盡**：API 將自動降級為 mock provider，但請持續監測 `UnsupportedOperation.PkgExhausted` 錯誤。
-- **Mongo 連線失敗**：工作流/故事資料將回退至記憶體快照；請檢查 `MONGODB_URI`。
-- **SSE 代理超時**：建議於 Nginx/反向代理設定足夠的 `proxy_read_timeout`。
+- **LLM 金鑰失效或配額不足**：API 會返回 503；請重新配置或補充額度。
+- **輸入敏感主題**：若命中內建關鍵字（成人、暴力、血腥），會回傳 `CONTENT_VIOLATION`。
 
-最新狀態請參閱 `README.md` 與 `docs/workflow-schema-alignment.md`。
+更多資訊可參閱 `README.md` 與 `docs/end-to-end-testing.md`。

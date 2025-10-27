@@ -1,18 +1,18 @@
-# GPT-5 Story
+# GPT-5 Detective Story Generator
 
-面向儿童推理故事的 LangChain 工作流與前端控制臺。後端採用 Node.js + Express + MongoDB，並結合多階段生成、審校與一次性故事樹流程；前端提供互動故事、故事樹與語音任務視覺化。
+這是一個專注於「高品質短篇推理小說」的生成服務。後端以 Node.js + Express 包裝多階段 LangChain 工作流，產出完整的中文偵探故事，並附上故事大綱與自動檢查結果；前端提供簡潔的操作介面，只需輸入主題即可取得成品。
 
 ## Monorepo 結構
 
 ```
 gpt5story/
 ├── apps/
-│   ├── api/          # Express API（故事生成 / 工作流 / TTS 任務）
-│   ├── web/          # React + Vite 控制臺
+│   ├── api/          # Express API，只暴露 /api/health 與 /api/generate-story
+│   └── web/          # React + Vite 單頁控制臺
 ├── packages/
-│   ├── shared/       # 共享類型、Zod Schema
-│   ├── workflow/     # LangChain 工作流（Stage1~Stage4、故事樹）
-├── docs/             # 分析與實施文檔
+│   ├── shared/       # 共享型別與 Zod Schema
+│   └── workflow/     # LangChain 工作流（策畫→寫作→審校→修訂）
+├── docs/             # 說明文件
 └── package.json
 ```
 
@@ -22,54 +22,36 @@ gpt5story/
 git clone git@github.com:haizhouyuan/gpt5story.git
 cd gpt5story
 
-# 安裝依賴（含 web 工作區）
 npm install
 
-# 產生 .env 並設定：
+# 建議於專案根目錄建立 .env，至少設定：
 # OPENROUTER_API_KEY=...
-# MONGODB_URI=mongodb://localhost:27017
-# TENCENT_SECRET_ID=...
-# TENCENT_SECRET_KEY=...
-# （更多環境變數參考 docs/StoryApp-阶段进展.md）
+# 或 OPENAI_API_KEY=...
 
-# 啟動後端
-npm run dev -w @gpt5story/api
+# 啟動 API（預設 http://localhost:4000）
+PORT=4000 npm run dev -w @gpt5story/api
 
 # 啟動前端控制臺（預設 http://localhost:5173）
 npm run dev -w @gpt5story/web
 
-# 單元測試與 TS 檢查
+# 測試 / 型別檢查
 npm test
-npm run lint
-
-# 打包（含 web）
-npm run build
+npm run lint -w @gpt5story/web
 ```
 
-## 主要功能
+## 核心功能
 
-- **多階段 LangChain 工作流**：策畫 → 寫作 → 審校 → 修訂，輸出 outline、review notes、修訂計畫與事件流。
-- **故事樹生成**：一次性輸出完整分支，API `/api/generate-full-story`。
-- **流式 SSE**：`/api/generate-story/stream` 即時回傳階段事件，前端可逐步顯示。
-- **語音任務**：模擬 TTS 任務列隊（`/api/tts/tasks`）。
-- **Mongo 持久化**：故事快照、工作流執行紀錄、模型配置（`/api/models`）。
-- **內容安全與限流**：敏感詞過濾、輸出審查、`express-rate-limit`。
+- **單一故事端點**：`POST /api/generate-story`
+  - 輸入主題（可附帶既有線索），回傳完整短篇故事。
+  - 同時提供故事大綱、審校備註、修訂計畫與驗證報告，方便人工微調。
+- **內建內容安全**：關鍵字（成人、暴力、血腥）會被拒絕，避免產出不適內容。
+- **前端控制臺**：輸入主題 → 點擊「生成故事」即可觀看結果與分析資訊。
 
-### 控制臺分頁
+## 文件
 
-- **互動故事**：呼叫 `/api/generate-story`（同步或 SSE）並展示審校、驗證、修訂摘要。
-- **故事樹**：調用 `/api/generate-full-story` 查看分支結構。
-- **語音任務**：建立 `/api/tts/tasks` 並輪詢結果。
-- **工作流監控**：
-  - 列表：`GET /api/workflows`
-  - 建立：`POST /api/workflows`
-  - 重新執行：`POST /api/workflows/:traceId/retry`
-  - 遙測明細：`GET /api/workflows/:traceId/stage-activity`
-  - 詳情包含 Outline、Draft、Validation、Revision Summary 與 Stage Telemetry。
+- `docs/StoryApp 现状分析与基于 LangChain 的重构方案.md`：原始需求與方案
+- `docs/workflow-schema-alignment.md`：工作流資料結構說明
+- `docs/quality-checklist.md`：品質檢查與回歸建議
+- `docs/end-to-end-testing.md`：端到端測試指引
 
-### Tencent TTS
-
-- 若設置 `TENCENT_SECRET_ID` / `TENCENT_SECRET_KEY`，後端將啟用腾讯云語音合成；未配置時自動回退為 Mock Provider。
-- 相關參數（語速、聲線、采樣率等）詳見 `docs/tencent-tts.md`，可透過 `TTS_VOICE_TYPE`、`TTS_SAMPLE_RATE`、`TTS_CODEC`、`TENCENT_REGION` 覆蓋預設。
-
-更多背景與設計詳見 `docs/StoryApp 现状分析与基于 LangChain 的重构方案.md` 及更新記錄 `docs/StoryApp-阶段进展.md`。
+更多細節可參考上述文件。歡迎依需求調整提示詞或 LLM 提供者，以生成不同風格的推理故事。
