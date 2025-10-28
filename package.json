@@ -24,6 +24,7 @@
     "vitest": "^4.0.3"
   },
   "dependencies": {
+    "zod": "^3.23.8",
     "express-rate-limit": "^8.1.0",
     "mongodb": "^6.20.0",
     "mongodb-memory-server": "^10.2.3"

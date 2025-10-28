@@ -1,0 +1,78 @@
+{
+  "projectCard": {
+    "projectId": "7c2f4d3e-8a1f-4a0e-9c5a-2e9d8c7b12f4",
+    "titleCandidates": ["雾夜钟楼的七级台阶", "消失的铜怀表", "糖纸拼成的地图"],
+    "series": "蛋蛋侦探事件簿",
+    "genreTags": ["本格", "少年视角", "温情"],
+    "themes": ["雾夜", "怀表", "糖纸"],
+    "targetWordCount": 5000,
+    "definitionOfDone": [
+      "成稿字数4800-5200字",
+      "第一人称“蛋蛋”叙述，全程口吻统一"
+    ],
+    "risks": [
+      {"id": "R1", "risk": "test", "mitigation": "mitigate"}
+    ],
+    "successMetrics": [
+      {"metric": "字数", "target": "5000±10%"}
+    ]
+  },
+  "miracleBlueprint": {
+    "miracleId": "8f9c2e74-3fd1-4e63-9a32-5d0323b1e6a9",
+    "logline": "利用钟楼重锤井把牵引线悄然从密室引至下一层，整点钟声掩护下远程反锁房门，并以可滑动伪装面板遮蔽外侧钥匙孔；纸飞机负责“递线”，形成钟楼密室 + 消失的钥匙孔 + 纸飞机的单人可行中心诡计。",
+    "trigger": "整点前数十秒，凶手在下一层拉动从重锤井垂下的细线：先带动内侧旋钮反锁，再顺势拉闭伪装面板使钥匙孔“消失”；钟声掩盖一切异响。",
+    "mechanismChain": [
+      {
+        "order": 1,
+        "node": "钥匙孔伪装滑盖（嵌入式遮蔽面板）",
+        "type": "装置",
+        "effect": "在门外侧原有护盖位置，增设一块沿榫槽横向滑动的薄黄铜面板，拉动即覆盖钥匙孔，静止时与门上锻铁装饰与木纹对齐，肉眼似乎“没有钥匙孔”。",
+        "evidenceHooks": [
+          "护盖外沿新鲜的抛光痕与旧漆色差",
+          "门边缘有微小导线孔或极细割缝（与铁带纹理同向）"
+        ]
+      }
+    ],
+    "weaknesses": [],
+    "toleranceNotes": "线径0.10–0.18mm钓线可用",
+    "replicationSteps": ["step"],
+    "foreshadowingIdeas": ["idea"],
+    "variantSummary": {}
+  },
+  "castAndProps": {
+    "characters": [
+      {
+        "id": "c01",
+        "name": "蛋蛋",
+        "role": "鹦鹉侦探",
+        "motiveOrSecret": "学舌记录现场",
+        "firstHint": "第1章"
+      },
+      {
+        "id": "c02",
+        "name": "段燃",
+        "role": "保安队长",
+        "motiveOrSecret": "家境压力，受贿关闭监控",
+        "firstHint": "第2章"
+      }
+    ],
+    "props": [
+      {
+        "id": "p01",
+        "name": "伪装滑盖",
+        "category": "机关",
+        "description": "遮蔽钥匙孔的薄铜面板",
+        "plantChapterHint": "第1章",
+        "payoffChapterHint": "第8章"
+      },
+      {
+        "id": "p02",
+        "name": "门磁延时器",
+        "category": "机关",
+        "description": "制造门禁空窗",
+        "plantChapterHint": "第2章",
+        "payoffChapterHint": "第7章"
+      }
+    ]
+  }
+}

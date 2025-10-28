@@ -55,4 +55,12 @@ curl -X POST http://localhost:4000/api/generate-story \
 - `tail -f /tmp/gpt5story-web.log`：前端啟動狀態。
 - 若呼叫 API 失敗，確認 `.env` 是否設定有效的 OpenAI/OpenRouter API Key。
 
+附註：長篇工作流 Artifact
+---------------------------
+- 若需保留 Stage7 Markdown 成果，啟動前設定 `GPT5STORY_LONGFORM_MD_OUT=/path/to/storage`。
+- 若需追蹤自動審校與評分結果，可設定 `GPT5STORY_LONGFORM_QA_BOARD=/path/to/board`，完成一次工作流後會在該目錄寫入/更新 `qa-board.json`。
+- 查看 QA 看板最新條目：`jq '.[0]' $GPT5STORY_LONGFORM_QA_BOARD/qa-board.json`
+- 下載對應 Markdown：`cat "$GPT5STORY_LONGFORM_MD_OUT/$(jq -r '.[0].markdownPath' $GPT5STORY_LONGFORM_QA_BOARD/qa-board.json)"`
+上述設定未啟用時，長篇流程仍可執行，但不會產生檔案。
+
 完成上述測試，即可確認系統能輸入主題並產出完整的短篇推理小說。EOF
