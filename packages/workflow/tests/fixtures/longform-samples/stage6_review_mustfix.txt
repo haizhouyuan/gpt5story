@@ -1,0 +1,43 @@
+{
+  "checks": [
+    {
+      "rule": "線索前置與回收",
+      "status": "warn",
+      "detail": "c04 暗槽刮痕雖於第2章曝光，但缺少再提示。",
+      "evidence": ["chapter-2", "chapter-7"]
+    },
+    {
+      "rule": "物理可信度校驗",
+      "status": "fail",
+      "detail": "滑蓋受力路徑描述不足，需要補寫暗槽與耳軸傳動示意。",
+      "evidence": ["scene5", "appendix-1"]
+    }
+  ],
+  "logicChain": [
+    {
+      "step": 1,
+      "claim": "紙飛機可精準拉動滑蓋",
+      "supportedBy": ["scene5", "draft-5", "timeline-23:00"]
+    },
+    {
+      "step": 2,
+      "claim": "鐘聲掩護聲響足夠",
+      "supportedBy": ["audio-spectrum", "c03"]
+    }
+  ],
+  "mustFix": [
+    "補寫滑蓋傳動的受力細節，至少一段文字 + 一條讀者可觀察的提示。"
+  ],
+  "warnings": [
+    "段燃角色動機略弱，可在終盤補一句他對鐘聲的珍視。"
+  ],
+  "suggestions": [
+    "讀者挑戰可加入“滑蓋為何能橫向移動？”作為提示。"
+  ],
+  "metrics": {
+    "clueCoverage": "待補充",
+    "redHerringRatio": "均衡",
+    "wordCountCheck": "ok",
+    "toneConsistency": "ok"
+  }
+}

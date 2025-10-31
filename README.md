@@ -1,17 +1,14 @@
 # GPT-5 Detective Story Generator
 
-這是一個專注於「高品質短篇推理小說」的生成服務。後端以 Node.js + Express 包裝多階段 LangChain 工作流，產出完整的中文偵探故事，並附上故事大綱與自動檢查結果；前端提供簡潔的操作介面，只需輸入主題即可取得成品。
+此專案專注於「高品質長篇偵探小說」的生成研究。核心是用 LangGraph 編排的多階段工作流（Stage0–Stage7），涵蓋案件藍圖、角色與線索設計、章節草稿、審校與最終質量評估。過去的短篇服務與前端介面已移除，現以程式化 API 與手動實驗為主。
 
 ## Monorepo 結構
 
 ```
 gpt5story/
-├── apps/
-│   ├── api/          # Express API，只暴露 /api/health 與 /api/generate-story
-│   └── web/          # React + Vite 單頁控制臺
 ├── packages/
 │   ├── shared/       # 共享型別與 Zod Schema
-│   └── workflow/     # LangChain 工作流（策畫→寫作→審校→修訂）
+│   └── workflow/     # LangGraph 長篇工作流（Stage0–Stage7）
 ├── docs/             # 說明文件
 └── package.json
 ```
@@ -24,39 +21,63 @@ cd gpt5story
 
 npm install
 
-# 建議於專案根目錄建立 .env，至少設定：
-# OPENROUTER_API_KEY=...
-# 或 OPENAI_API_KEY=...
+# 若要直接呼叫工作流，請於環境變數設定 OpenRouter 或 OpenAI API Key
+# 例如：export OPENROUTER_API_KEY=sk-...
+# 若需啟用斷點續跑，可設定緩存路徑：export GPT5STORY_LONGFORM_CACHE=experiments/longform-cache
 
-# 啟動 API（預設 http://localhost:4000）
-PORT=4000 npm run dev -w @gpt5story/api
-
-# 啟動前端控制臺（預設 http://localhost:5173）
-npm run dev -w @gpt5story/web
-
-# 測試 / 型別檢查
+# 執行單元測試
 npm test
-npm run lint -w @gpt5story/web
 ```
 
-## 核心功能
+## LangGraph 長篇工作流
 
-- **單一故事端點**：`POST /api/generate-story`
-  - 輸入主題（可附帶既有線索），回傳完整短篇故事。
-  - 同時提供故事大綱、審校備註、修訂計畫與驗證報告，方便人工微調。
-- **內建內容安全**：關鍵字（成人、暴力、血腥）會被拒絕，避免產出不適內容。
-- **前端控制臺**：輸入主題 → 點擊「生成故事」即可觀看結果與分析資訊。
+核心邏輯位於 `packages/workflow/src/workflow/longform/`：
 
-## 長篇工作流（實驗中）
+- **Stage0–Stage7**：涵蓋專案初始化、案件藍圖、角色與線索矩陣、章節稿、審校與最終潤色。
+- **LangGraph 編排**：`langGraphBuilder.ts` 以 `StateGraph` 管理節點、依賴與 Stage5↔Stage6 的自動回退。
+- **產出 Artifact**：Stage7 會輸出 Markdown，並可選擇將結果與評分寫入 QA 看板。
 
-`packages/workflow` 內仍保留 LangChain 長篇多階段流程，方便進行 5000 字級別的偵探小說實驗。近期更新重點：
+示例（使用 `tsx` 呼叫工作流）：
 
-- **Stage5 ↔ Stage6 自動回退**：審校若出現 `mustFix`（或啟用 `GPT5STORY_LONGFORM_FAIL_ON_WARN` 並產生警告），會觸發 Stage5 草稿自動重寫，再次審校直至通過或超過 `GPT5STORY_LONGFORM_STAGE5_RETRY` 的上限。
-- **Stage7 Markdown 版本化**：設定 `GPT5STORY_LONGFORM_MD_OUT=/path/to/storage` 後，最終稿會以 `YYYYMMDD/<traceId>_stage7_vXX_<timestamp>.md` 形式寫入，並在工作流結果中回傳 `markdownPath` 方便追蹤。
-- **Quality Gate 評估**：`qualityGateEvaluation` 會呼叫真實 LLM 產生結論（`score`、`verdict`、`recommendations` 等）。
-- **QA 看板**：若同時設定 `GPT5STORY_LONGFORM_QA_BOARD=/path/to/board`，每次完成長篇流程會在 `qa-board.json` 追加一筆紀錄（含 traceId、stage5/6 嘗試次數、mustFix 數、最終評分與 Markdown 路徑）。
+```bash
+OPENROUTER_API_KEY=sk-... npx tsx <<'TS'
+import 'dotenv/config';
+import { createLongformWorkflow } from '@gpt5story/workflow';
 
-> 提示：未提供這些環境變數時，仍可在單機環境下執行流程，只是 Markdown 與 QA 看板不會被寫出。
+const workflow = createLongformWorkflow();
+const result = await workflow.invoke({
+  instructions: '生成一篇 5000 字的鐘樓密室長篇偵探小說',
+  revisionContext: {},
+});
+
+console.log(result.artifacts.stage7Polish?.markdown?.slice(0, 200));
+TS
+```
+
+可透過以下環境變數擴充輸出：
+
+- `GPT5STORY_LONGFORM_MD_OUT`：Stage7 Markdown 會依日期與版本號寫入該資料夾。
+- `GPT5STORY_LONGFORM_QA_BOARD`：完成執行後在 `qa-board.json` 累積 trace 與評分紀錄。
+- `GPT5STORY_LONGFORM_FAIL_ON_WARN=1`：Stage6若出現 warning 也視為需回退。
+- `GPT5STORY_LONGFORM_CACHE`：指定斷點續跑的緩存資料夾，搭配 CLI `--trace-id <id> --resume` 可從中斷處繼續。
+
+LangGraph 結構與事件追蹤可參考 `docs/longform-workflow/langgraph-overview.md`。
+
+### CLI 工作流腳本
+
+專案提供 `npm run longform:run`（使用內建樣本）與 `npm run longform:run:live`（實際呼叫 LLM）兩種腳本。
+
+- 基本指令：
+  ```bash
+  npm run longform:run            # Fixture，不耗費 LLM 配額
+  npm run longform:run:live       # 實機測試，需 OPENROUTER_API_KEY 或 OPENAI_API_KEY
+  ```
+- 參數：
+  - `--instructions=...` 覆蓋生成要求
+  - `--trace-id=<uuid> --resume` 配合 `GPT5STORY_LONGFORM_CACHE` 可從指定 trace 續跑
+  - `--live` / `--fixture` 強制切換模式
+
+腳本在錯誤時會打印中斷階段與 `traceId`，並給出續跑命令示例。
 
 ## 文件
 

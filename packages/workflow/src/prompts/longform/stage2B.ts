@@ -26,11 +26,12 @@ export const buildStage2BCluePrompt = (input: Stage2BCluePromptInput): PromptPay
     '  "fairnessSummary": { "clueCount": 数字, "redHerringRatio": "百分比", "checks": ["..."], "risks": ["..."] }',
     '}',
     '请确保：',
-    '  - `clueMatrix` 至少 12 条，覆盖“滑盖/导向环”“门磁延时”“投毒链”“镜像误导”等关键机制，并在 `linksToMechanism` 中引用中心诡计节点名称。',
-    '  - `timelineAnchors` 至少 8 个，且首尾时间点均有证人或物证支撑。',
-    '  - 红鲱鱼数量 5 条左右，`redHerringRatio` ≤ 40%。',
+    '  - `clueMatrix` 至少 8 条核心线索（鼓励 9-10 条），覆盖“滑盖/导向环”“纸飞机牵引”“时间错位（怀表/门磁）”“镜像或直播误导”等要素；每条描述控制在两句以内，并在 `linksToMechanism` 中引用中心诡计节点名称。',
+    '  - `timelineAnchors` 需列出 6–7 个关键时间锚点，覆盖案前布置、触发、掩音窗口、误导、复盘等环节；每个锚点必须给出 chapterRef、证据来源与用途。',
+    '  - 红鲱鱼数量 2–3 条，突出误导意图；`redHerringRatio` 保持 ≤ 40%。',
     '  - 如果线索或红鲱鱼依赖某角色或道具，应引用其 ID（cXX / pXX）。',
-    '  - 请在 `fairnessSummary.checks` 中列出检测项（如“线索前置≥4条”“导向环痕迹显性化”），`risks` 中提到潜在漏洞。',
+    '  - 所有字符串最长不超过 120 个汉字或 240 字符；`senses` / `linksToMechanism` 控制在 3 项以内。',
+    '  - 请在 `fairnessSummary.checks` 中列出 3 条检测项（如“线索前置≥4条”“导向环痕迹显性化”），`risks` 提出 2 条潜在漏洞。',
   ].join(' ');
 
   const user = [

@@ -197,14 +197,14 @@ export const chapterDraftSchema = z.object({
 export const longformDraftSchema = z.object({
   chapterDrafts: z.array(chapterDraftSchema).min(1),
   appendices: z.object({
-    clueRecap: z.array(z.object({ id: z.string(), excerpt: z.string(), chapterRef: z.number().int() })),
-    timelineRecap: z.array(z.object({ time: z.string(), event: z.string(), chapterRef: z.number().int() })),
-    revisionNotes: z.array(z.string()),
-  }),
+    clueRecap: z.array(z.object({ id: z.string(), excerpt: z.string(), chapterRef: z.number().int() })).default([]),
+    timelineRecap: z.array(z.object({ time: z.string(), event: z.string(), chapterRef: z.number().int() })).default([]),
+    revisionNotes: z.array(z.string()).default([]),
+  }).default({ clueRecap: [], timelineRecap: [], revisionNotes: [] }),
   metrics: z.object({
-    totalWordCount: z.number().int(),
-    averageChapterLength: z.number().int(),
-  }),
+    totalWordCount: z.number().int().nonnegative().default(0),
+    averageChapterLength: z.number().int().nonnegative().default(0),
+  }).default({ totalWordCount: 0, averageChapterLength: 0 }),
 });
 
 export const reviewCheckSchema = z.object({

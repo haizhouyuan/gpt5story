@@ -1,66 +1,73 @@
 End-to-End Testing Guide
 ========================
 
-本指引說明如何驗證「短篇推理小說生成」服務在本地或遠端環境的整體流程。
+本指引說明如何在本地驗證「長篇偵探小說」LangGraph 工作流的運行結果與產物。
 
 環境需求
 --------
-- 位置：`gpt5story/`
 - Node.js 20+、npm 10+
-- `.env` 提供有效的 LLM API key（如 `OPENROUTER_API_KEY`）
+- 具備可用的 LLM API Key（如 `OPENROUTER_API_KEY` 或 `OPENAI_API_KEY`）
+- 可選：
+  - `GPT5STORY_LONGFORM_MD_OUT`：Stage7 Markdown 版本化輸出目錄
+  - `GPT5STORY_LONGFORM_QA_BOARD`：QA 看板 (`qa-board.json`) 輸出目錄
 
-服務啟動
---------
+執行工作流
+------------
+
+### 使用專案內建腳本
+
 ```bash
-# 啟動 API（預設 4000）
-PORT=4000 npm run dev -w @gpt5story/api > /tmp/gpt5story-api.log 2>&1 &
-
-# 啟動前端（示例：8703 端口）
-VITE_API_BASE_URL=http://localhost:4000 \
-  npm run dev -w @gpt5story/web -- --host 0.0.0.0 --port 8703 --strictPort \
-  > /tmp/gpt5story-web.log 2>&1 &
-
-# 確認端口
-ss -ltnp | grep -E '(:4000|:8703)'
+npm run longform:run           # 使用內建 fixture，不會調用真實 LLM
+npm run longform:run:live      # 調用真實 LLM（需事先準備 OPENROUTER_API_KEY 或 OPENAI_API_KEY）
 ```
 
-測試步驟
---------
-1. **瀏覽器開啟** `http://<host>:8703/`
-2. 輸入故事主題（例如「霧夜古堡的疑案」），可選填「既有線索」。
-3. 點擊「生成故事」，待呼叫 `/api/generate-story` 完成後，頁面會顯示：
-   - 完整故事文本
-   - 故事大綱（Acts）
-   - 審校備註與修訂建議
-   - 自動驗證結果（Pass/Warn/Fail）
-4. 多次測試不同主題，檢查故事內容是否符合推理小說敘事（可以著重在結尾是否交代線索）。
+腳本位於 `scripts/run-longform.ts`，預設會讀取 `packages/workflow/tests/fixtures/longform-samples/` 中的樣本資料並輸出 trace 資訊，方便驗證 LangGraph 節點與 LangSmith 追蹤。加上 `--live` 或執行 `npm run longform:run:live` 時，會改用真實 LLM，請務必確保 `.env` 已設定對應的憑證。
 
-API 驗證
---------
+若希望在中途中斷後續跑，可設定緩存路徑並重試：
+
 ```bash
-# 健康檢查
-curl http://localhost:4000/api/health
-
-# 生成故事
-curl -X POST http://localhost:4000/api/generate-story \
-  -H "Content-Type: application/json" \
-  -d '{"topic":"午夜列車懸案","historyContent":"","turnIndex":0}' | jq '.'
+export GPT5STORY_LONGFORM_CACHE=experiments/longform-cache
+npm run longform:run:live -- --trace-id=<trace-id> --resume
 ```
 
-相應 JSON 中 `data.story` 為完整故事內容，`outline/reviewNotes/revisionPlan/validationReport` 可用於人工審閱。
+當執行失敗時，CLI 會輸出失敗階段、traceId 以及建議的續跑命令。Trace 也會同步保存在 LangSmith，方便比對輸入輸出。
+
+### 使用自訂 tsx 片段
+
+```bash
+npm install
+
+export OPENROUTER_API_KEY=sk-...   # 或設定 OPENAI_API_KEY
+
+npx tsx <<'TS'
+import 'dotenv/config';
+import { createLongformWorkflow } from '@gpt5story/workflow';
+
+const workflow = createLongformWorkflow();
+const result = await workflow.invoke({
+  instructions: '生成一篇 5000 字的鐘樓密室長篇偵探小說',
+});
+
+const polished = result.artifacts.stage7Polish;
+console.log('Markdown excerpt:\n', polished?.markdown?.slice(0, 400) ?? 'N/A');
+console.log('Markdown path:', polished?.markdownPath ?? '(未設定 GPT5STORY_LONGFORM_MD_OUT 無檔案產生)');
+if (process.env.GPT5STORY_LONGFORM_QA_BOARD) {
+  console.log('Latest QA board entry:', `${process.env.GPT5STORY_LONGFORM_QA_BOARD}/qa-board.json`);
+}
+TS
+```
+
+驗證重點
+--------
+1. **Stage 產物完整性**：`result.artifacts` 應包含 Stage0–Stage7 以及 `qualityGateEvaluation`；Stage7 需回傳 `finalDraft`、`appliedChanges`、`markdown` 等欄位。
+2. **自動回退行為**：若 Stage6 出現 `mustFix`，事件紀錄 (`result.telemetry.events`) 會顯示 Stage5/Stage6 再次執行，且最終 `mustFix` 應為空陣列。
+3. **檔案輸出（可選）**：
+   - 設定 `GPT5STORY_LONGFORM_MD_OUT` 後，Stage7 會將 Markdown 以 `YYYYMMDD/<traceId>_stage7_vXX_<timestamp>.md` 寫入。
+   - 設定 `GPT5STORY_LONGFORM_QA_BOARD` 後，完成時會在該目錄更新 `qa-board.json`，可用 `jq '.[0]' qa-board.json` 查看最近一次執行紀錄。
 
 排錯建議
 --------
-- `tail -f /tmp/gpt5story-api.log`：API 輸出；若 LLM 金鑰失效會於此群報錯。
-- `tail -f /tmp/gpt5story-web.log`：前端啟動狀態。
-- 若呼叫 API 失敗，確認 `.env` 是否設定有效的 OpenAI/OpenRouter API Key。
+- 若輸出為占位文字，代表 LLM 凭證無效或未設置，請確認環境變數。
+- 可配合 LangSmith、Weights & Biases 等工具追蹤節點執行情況；或參考 `docs/longform-workflow/langgraph-overview.md` 以 `draw_mermaid_png()` 輸出圖形化結構。
 
-附註：長篇工作流 Artifact
----------------------------
-- 若需保留 Stage7 Markdown 成果，啟動前設定 `GPT5STORY_LONGFORM_MD_OUT=/path/to/storage`。
-- 若需追蹤自動審校與評分結果，可設定 `GPT5STORY_LONGFORM_QA_BOARD=/path/to/board`，完成一次工作流後會在該目錄寫入/更新 `qa-board.json`。
-- 查看 QA 看板最新條目：`jq '.[0]' $GPT5STORY_LONGFORM_QA_BOARD/qa-board.json`
-- 下載對應 Markdown：`cat "$GPT5STORY_LONGFORM_MD_OUT/$(jq -r '.[0].markdownPath' $GPT5STORY_LONGFORM_QA_BOARD/qa-board.json)"`
-上述設定未啟用時，長篇流程仍可執行，但不會產生檔案。
-
-完成上述測試，即可確認系統能輸入主題並產出完整的短篇推理小說。EOF
+完成以上步驟，即可確認長篇工作流能從指令產出完整偵探小說稿與相關品質檢查資訊。EOF

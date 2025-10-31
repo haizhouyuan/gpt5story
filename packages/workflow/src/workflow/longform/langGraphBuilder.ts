@@ -6,7 +6,7 @@ import type {
   LongformWorkflowRequest,
 } from './types.js';
 import type { LongformStageExecutor } from './stages.js';
-import { buildDefaultRegistry, mergeRegistry } from './stages.js';
+import { buildDefaultRegistry, mergeRegistry, type LongformStageRegistry } from './stages.js';
 import { LongformWorkflowContext } from './context.js';
 import { Stage6ReviewBlockerError } from './stages/executors.js';
 import { getStage5MaxAutoRevisions } from './config.js';
@@ -39,10 +39,6 @@ const STAGE_ORDER: LongformStageId[] = [
   'qualityGateEvaluation',
 ];
 
-type ExecutorMap = Record<LongformStageId, LongformStageExecutor<LongformStageId>>;
-
-type StageConfigMap = Record<LongformStageId, LongformStageConfig>;
-
 const totalAllowedAttempts = (maxAutoRetries: number) => Math.max(1, 1 + Math.max(maxAutoRetries, 0));
 
 const createGenericNode = <K extends LongformStageId>(
@@ -54,6 +50,27 @@ const createGenericNode = <K extends LongformStageId>(
   return async (state: StageState): Promise<StageUpdate> => {
     const runtime = context.createStageRuntime();
     const maxAttempts = Math.max(config.retryAttempts ?? 1, 1);
+    const resumeMode = Boolean(state.request.resumeFromCache);
+    const existing = context.artifacts.get(stage);
+    const isStage5Retry = stage === 'stage5LongformDraft' && state.route === 'retry';
+
+    if (resumeMode && existing && !isStage5Retry) {
+      const timestamp = new Date().toISOString();
+      runtime.emit({ stage, status: 'start', timestamp, meta: { resume: true } });
+      runtime.emit({ stage, status: 'success', timestamp, meta: { resume: true } });
+      const artifacts = { ...state.artifacts, [stage]: existing };
+      const update: StageUpdate = { artifacts };
+      if (stage === 'stage5LongformDraft') {
+        update.stage5Attempts = Math.max(state.stage5Attempts, 1);
+        update.route = null;
+      }
+      if (stage === 'stage6Review') {
+        update.stage6Attempts = Math.max(state.stage6Attempts, 1);
+        update.route = 'advance';
+        update.request = { ...state.request };
+      }
+      return update;
+    }
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       runtime.emit({ stage, status: 'start', timestamp: new Date().toISOString(), meta: { attempt } });
@@ -111,6 +128,21 @@ const createStage6Node = (
   return async (state: StageState): Promise<StageUpdate> => {
     const runtime = context.createStageRuntime();
     const maxAttempts = Math.max(config.retryAttempts ?? 1, 1);
+    const resumeMode = Boolean(state.request.resumeFromCache);
+    const existing = context.artifacts.get('stage6Review');
+
+    if (resumeMode && existing && state.route !== 'retry') {
+      const timestamp = new Date().toISOString();
+      runtime.emit({ stage: 'stage6Review', status: 'start', timestamp, meta: { resume: true } });
+      runtime.emit({ stage: 'stage6Review', status: 'success', timestamp, meta: { resume: true } });
+      const artifacts = { ...state.artifacts, stage6Review: existing };
+      return {
+        artifacts,
+        stage6Attempts: Math.max(state.stage6Attempts, 1),
+        route: 'advance',
+        request: { ...state.request },
+      };
+    }
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       runtime.emit({ stage: 'stage6Review', status: 'start', timestamp: new Date().toISOString(), meta: { attempt } });
@@ -226,16 +258,17 @@ const createStage6Node = (
 
 export interface BuildGraphOptions {
   request: LongformWorkflowRequest;
-  executors?: Partial<ExecutorMap>;
+  executors?: Partial<LongformStageRegistry>;
   context: LongformWorkflowContext;
-  stageConfigs: StageConfigMap;
+  stageConfigs: Record<LongformStageId, LongformStageConfig>;
 }
 
 export const buildLongformGraph = ({ request, executors, context, stageConfigs }: BuildGraphOptions) => {
   const registry = mergeRegistry(buildDefaultRegistry(), executors);
   const graph = new StateGraph(StageAnnotation);
+  const graphAny = graph as any;
 
-  graph.addNode('initialize', (): StageUpdate => ({
+  graphAny.addNode('initialize', (): StageUpdate => ({
     request,
     artifacts: request.overrides ? { ...request.overrides } : {},
     stage5Attempts: 0,
@@ -243,26 +276,26 @@ export const buildLongformGraph = ({ request, executors, context, stageConfigs }
     route: null,
   }));
 
-  graph.addEdge(START, 'initialize');
+  graphAny.addEdge(START, 'initialize');
 
   STAGE_ORDER.forEach((stageId, index) => {
     const node = stageId === 'stage6Review'
       ? createStage6Node(registry.stage6Review, context, stageConfigs.stage6Review)
       : createGenericNode(stageId, registry[stageId], context, stageConfigs[stageId]);
-    graph.addNode(stageId, node as RunnableLike<StageState, StageUpdate>);
+    graphAny.addNode(stageId, node as RunnableLike<StageState, StageUpdate>);
     if (stageId !== 'stage7Polish') {
-      graph.addEdge(index === 0 ? 'initialize' : STAGE_ORDER[index - 1], stageId);
+      graphAny.addEdge(index === 0 ? 'initialize' : STAGE_ORDER[index - 1], stageId);
     }
   });
 
-  graph.addConditionalEdges('stage6Review', (state: StageState) => {
+  graphAny.addConditionalEdges('stage6Review', (state: StageState) => {
     return state.route === 'retry' ? 'retry' : 'advance';
   }, {
     retry: 'stage5LongformDraft',
     advance: 'stage7Polish',
   });
 
-  graph.addEdge(STAGE_ORDER[STAGE_ORDER.length - 1], END);
+  graphAny.addEdge(STAGE_ORDER[STAGE_ORDER.length - 1], END);
 
-  return graph;
+  return graph as StateGraph<typeof StageAnnotation.State, typeof StageAnnotation.Update>;
 };

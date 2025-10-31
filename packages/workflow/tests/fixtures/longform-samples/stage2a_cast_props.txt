@@ -1,0 +1,58 @@
+{
+  "characters": [
+    {
+      "id": "char-egg",
+      "name": "蛋蛋",
+      "role": "十一歲的機械迷偵探",
+      "motiveOrSecret": "暗自想證明自己能單獨破案，拒絕成人代辦",
+      "firstHint": "注意到塔內導線被打蠟與紙屑"
+    },
+    {
+      "id": "char-warden",
+      "name": "林苡安",
+      "role": "鐘樓守塔人",
+      "motiveOrSecret": "背著館方加班維修秘密展品，擔心被撤職",
+      "firstHint": "她的保温杯外壁有不尋常的水珠與磨損"
+    },
+    {
+      "id": "char-curator",
+      "name": "顧臨川",
+      "role": "博物館策展顧問",
+      "motiveOrSecret": "欲以鐘樓直播炒作名氣，暗中威脅守塔人交出機關配方",
+      "firstHint": "身上殘留紙灰與糖味，被蛋蛋嗅到"
+    },
+    {
+      "id": "char-engineer",
+      "name": "段燃",
+      "role": "維修志工兼直播工程師",
+      "motiveOrSecret": "痴迷鐘聲機械，希望保留老舊結構，與顧臨川理念衝突",
+      "firstHint": "提前研究鐘聲節拍，提供蛋蛋時間線線索"
+    }
+  ],
+  "props": [
+    {
+      "id": "prop-cup",
+      "name": "霧色保温杯",
+      "category": "日常物品",
+      "description": "杯身外層有密集凝露，杯蓋內藏糖膠與微量化學品殘留。",
+      "plantChapterHint": "第一章直播開場時鏡頭掃過她手裡的杯子",
+      "payoffChapterHint": "第六章揭示杯蓋糖膠用於停秒懷表"
+    },
+    {
+      "id": "prop-plane",
+      "name": "金屬紙飛機",
+      "category": "機械道具",
+      "description": "以鋁箔紙折成，翼尖打洞穿線，配重硬幣刻有鐘樓標識。",
+      "plantChapterHint": "蛋蛋在倉庫里找到大量折壞的紙飛機樣本",
+      "payoffChapterHint": "終章重現飛行軌跡證明遠程操作"
+    },
+    {
+      "id": "prop-cover",
+      "name": "銅製滑蓋",
+      "category": "機關道具",
+      "description": "外觀仿舊門飾，背面接有磁吸定位與暗扣耳軸。",
+      "plantChapterHint": "段燃提到門飾最近換新且磁力更穩",
+      "payoffChapterHint": "蛋蛋以螺絲起子撬開揭露薄銅片"
+    }
+  ]
+}

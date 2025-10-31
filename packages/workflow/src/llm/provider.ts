@@ -1,7 +1,6 @@
 import { ChatOpenAI } from '@langchain/openai';
-import { RunnableSequence } from '@langchain/core/runnables';
-import { StringOutputParser } from '@langchain/core/output_parsers';
 import pRetry from 'p-retry';
+import type { AIMessage } from '@langchain/core/messages';
 
 export interface LlmConfig {
   apiKey?: string;
@@ -32,7 +31,7 @@ const DEFAULT_PLANNING_CONFIG: Required<LlmConfig> = {
   model: process.env.GPT5STORY_PLANNING_MODEL
     ?? (process.env.OPENROUTER_API_KEY ? 'openai/gpt-5' : 'gpt-4o-mini'),
   temperature: Number.parseFloat(process.env.GPT5STORY_PLANNING_TEMPERATURE ?? '0.2'),
-  maxTokens: Number.parseInt(process.env.GPT5STORY_PLANNING_MAXTOKENS ?? '2000', 10),
+  maxTokens: Number.parseInt(process.env.GPT5STORY_PLANNING_MAXTOKENS ?? '20000', 10),
   retries: Number.parseInt(process.env.GPT5STORY_PLANNING_RETRIES ?? '2', 10),
 };
 
@@ -42,7 +41,7 @@ const DEFAULT_DRAFTING_CONFIG: Required<LlmConfig> = {
   model: process.env.GPT5STORY_DRAFT_MODEL
     ?? (process.env.OPENROUTER_API_KEY ? 'openai/gpt-5' : 'gpt-4o-mini'),
   temperature: Number.parseFloat(process.env.GPT5STORY_DRAFT_TEMPERATURE ?? '0.7'),
-  maxTokens: Number.parseInt(process.env.GPT5STORY_DRAFT_MAXTOKENS ?? '3000', 10),
+  maxTokens: Number.parseInt(process.env.GPT5STORY_DRAFT_MAXTOKENS ?? '20000', 10),
   retries: Number.parseInt(process.env.GPT5STORY_DRAFT_RETRIES ?? '2', 10),
 };
 
@@ -67,12 +66,49 @@ function createChatModel(config: Required<LlmConfig>): ChatOpenAI {
   });
 }
 
-async function invokeWithRetry<TInput, TOutput>(
-  runnable: RunnableSequence<TInput, TOutput>,
-  input: TInput,
+const normalizeMessageContent = (message: AIMessage): string => {
+  const { content, additional_kwargs } = message;
+  if (typeof content === 'string' && content.trim().length > 0) {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    const joined = content
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        if (typeof part === 'object' && part && 'text' in part && typeof part.text === 'string') {
+          return part.text;
+        }
+        return '';
+      })
+      .join('');
+    if (joined.trim().length > 0) return joined;
+  }
+  const toolCalls = additional_kwargs?.tool_calls;
+  if (Array.isArray(toolCalls) && toolCalls.length > 0) {
+    const first = toolCalls[0];
+    const args = first?.function?.arguments;
+    if (typeof args === 'string' && args.trim().length > 0) {
+      return args;
+    }
+  }
+  return '';
+};
+
+async function invokeWithRetry(
+  model: ChatOpenAI,
+  messages: Parameters<ChatOpenAI['invoke']>[0],
   retries: number,
-): Promise<TOutput> {
-  return pRetry(() => runnable.invoke(input), { retries });
+): Promise<string> {
+  const message = await pRetry(() => model.invoke(messages), { retries });
+  const text = normalizeMessageContent(message);
+  if (text.trim().length === 0) {
+    console.error('[LlmProvider] Empty content received. Raw message:', JSON.stringify({
+      content: message.content,
+      additional_kwargs: message.additional_kwargs,
+      response_metadata: message.response_metadata,
+    }, null, 2));
+  }
+  return text;
 }
 
 export interface LlmExecutor {
@@ -102,24 +138,14 @@ export class LlmProvider implements LlmExecutor {
   }
 
   async plan(prompt: { system: string; user: string }): Promise<string> {
-    const chain = RunnableSequence.from([
-      this.planningModel,
-      new StringOutputParser(),
-    ]);
-
-    return invokeWithRetry(chain, [
+    return invokeWithRetry(this.planningModel, [
       { role: 'system', content: prompt.system },
       { role: 'user', content: prompt.user },
     ], this.planningConfig.retries);
   }
 
   async draft(prompt: { system: string; user: string }): Promise<string> {
-    const chain = RunnableSequence.from([
-      this.draftingModel,
-      new StringOutputParser(),
-    ]);
-
-    return invokeWithRetry(chain, [
+    return invokeWithRetry(this.draftingModel, [
       { role: 'system', content: prompt.system },
       { role: 'user', content: prompt.user },
     ], this.draftingConfig.retries);

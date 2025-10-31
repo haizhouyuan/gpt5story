@@ -24,7 +24,7 @@ export interface StageExecutionRecord<K extends LongformStageId> {
   executor: LongformStageExecutor<K>;
 }
 
-export const buildDefaultRegistry = (): LongformStageRegistry => registerDefaultExecutors();
+export const buildDefaultRegistry = (): LongformStageRegistry => registerDefaultExecutors() as LongformStageRegistry;
 
 export const executeStageWithRetry = async <K extends LongformStageId>(
   record: StageExecutionRecord<K>,
@@ -53,13 +53,7 @@ export const mergeRegistry = (
   overrides?: Partial<LongformStageRegistry>,
 ): LongformStageRegistry => {
   if (!overrides) return base;
-  const next: Partial<LongformStageRegistry> = { ...base };
-  for (const [stage, executor] of Object.entries(overrides) as Array<[LongformStageId, LongformStageExecutor<LongformStageId>]>) {
-    if (typeof executor === 'function') {
-      next[stage] = executor;
-    }
-  }
-  return next as LongformStageRegistry;
+  return { ...base, ...overrides } as LongformStageRegistry;
 };
 
 export const mergeResults = (

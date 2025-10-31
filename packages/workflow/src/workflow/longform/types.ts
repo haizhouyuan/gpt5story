@@ -111,7 +111,7 @@ export interface RedHerringItem {
 
 export interface TimelineAnchor {
   time: string;
-  chapterRef: number;
+  chapterRef?: number;
   event: string;
   evidence: string;
   relevance: string;
@@ -310,6 +310,8 @@ export interface LongformWorkflowTelemetry {
 }
 
 export interface LongformWorkflowResult {
+  traceId: string;
+  createdAt: string;
   stages: LongformStageState[];
   artifacts: Partial<LongformStageResultMap>;
   telemetry: LongformWorkflowTelemetry;
@@ -322,6 +324,7 @@ export interface LongformWorkflowRequest {
   overrides?: Partial<LongformStageResultMap>;
   revisionContext?: LongformRevisionContext;
   traceId?: string;
+  resumeFromCache?: boolean;
 }
 
 export interface LongformStageConfig {

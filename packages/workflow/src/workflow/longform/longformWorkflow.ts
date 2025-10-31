@@ -14,6 +14,7 @@ import {
 import {
   LongformWorkflowContext,
   MemoryArtifactStore,
+  CachedArtifactStore,
   type LongformArtifactStore,
 } from './context.js';
 import {
@@ -24,6 +25,11 @@ import {
 import { buildLongformGraph } from './langGraphBuilder.js';
 import { appendQaBoardEntry } from './qaBoard.js';
 import { getQaBoardRoot } from './config.js';
+import {
+  hasCacheConfigured,
+  readAllStageCache,
+} from './storage/stageCache.js';
+import { v4 as uuid } from 'uuid';
 
 export interface LongformWorkflowOptions {
   stageExecutors?: Partial<LongformStageRegistry>;
@@ -64,9 +70,13 @@ export class LongformStageExecutionError extends Error {
   constructor(
     readonly stage: LongformStageId,
     readonly state: LongformStageState,
+    readonly artifacts: Partial<LongformStageResultMap>,
+    readonly traceId: string,
     cause?: unknown,
   ) {
-    super(`Stage ${stage} failed: ${state.errorMessage ?? 'unknown error'}`, { cause });
+    const message = `Stage ${stage} failed: ${state.errorMessage ?? 'unknown error'}`;
+    super(message);
+    (this as Error & { cause?: unknown }).cause = cause;
     this.name = 'LongformStageExecutionError';
   }
 }
@@ -137,26 +147,43 @@ export class LongformWorkflowEngine {
   }
 
   async invoke(requestInput: LongformWorkflowRequest): Promise<LongformWorkflowResult> {
-    const context = new LongformWorkflowContext(this.llmExecutor, {
-      artifacts: this.artifactStore,
-      bus: this.bus,
-    });
+    const providedTraceId = requestInput.traceId;
+    const traceId = providedTraceId ?? uuid();
+    const shouldLoadCache = (requestInput.resumeFromCache ?? true) && hasCacheConfigured();
+    const cachedArtifacts = shouldLoadCache ? await readAllStageCache(traceId).catch(() => ({})) : {};
+    const initialArtifacts = {
+      ...cachedArtifacts,
+      ...(requestInput.overrides ?? {}),
+    } as Partial<LongformStageResultMap>;
 
     const request: LongformWorkflowRequest = {
       ...requestInput,
-      traceId: requestInput.traceId ?? context.traceId,
+      traceId,
+      resumeFromCache: shouldLoadCache && Object.keys(cachedArtifacts).length > 0,
+      overrides: initialArtifacts,
     };
 
-    if (request.overrides) {
-      for (const [stage, value] of Object.entries(request.overrides) as Array<[
+    const baseStore = this.options.artifactStore
+      ?? (hasCacheConfigured()
+        ? new CachedArtifactStore(traceId, initialArtifacts)
+        : new MemoryArtifactStore(initialArtifacts));
+    if (this.options.artifactStore && Object.keys(initialArtifacts).length > 0) {
+      for (const [stage, value] of Object.entries(initialArtifacts) as Array<[
         LongformStageId,
         LongformStageResultMap[keyof LongformStageResultMap],
       ]>) {
         if (value !== undefined) {
-          context.artifacts.save(stage, value as never);
+          baseStore.save(stage, value as never);
         }
       }
     }
+
+    const context = new LongformWorkflowContext(this.llmExecutor, {
+      artifacts: baseStore,
+      bus: this.bus,
+      traceId,
+      initialArtifacts: Object.keys(initialArtifacts).length > 0 ? initialArtifacts : undefined,
+    });
 
     const graph = buildLongformGraph({ request, executors: this.registry, context, stageConfigs: this.stageConfigs });
     const compiled = graph.compile();
@@ -178,6 +205,8 @@ export class LongformWorkflowEngine {
       throw new LongformStageExecutionError(
         failedStageId,
         failedStageState,
+        artifacts,
+        context.traceId,
         error,
       );
     }
@@ -189,6 +218,8 @@ export class LongformWorkflowEngine {
     await this.syncQaBoardIfConfigured(context, stageStates, artifacts).catch(() => undefined);
 
     return {
+      traceId: context.traceId,
+      createdAt: context.createdAt.toISOString(),
       stages: stageStates,
       artifacts,
       telemetry,

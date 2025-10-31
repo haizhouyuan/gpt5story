@@ -8,15 +8,14 @@ import {
 import os from 'node:os';
 import path from 'node:path';
 import { createLongformWorkflow, LongformStageExecutionError } from '../src/workflow/longform/longformWorkflow.js';
-import type { ProjectCard, LongformStageId } from '../src/workflow/longform/types.js';
+import type { ProjectCard, LongformStageId, ReviewReport } from '../src/workflow/longform/types.js';
 import { createStubLlm } from '../src/workflow/longform/__mocks__/llmExecutor.js';
 
-const SAMPLE_DIR = path.resolve('experiments/longform-run-v2');
+const SAMPLE_DIR = path.resolve('packages/workflow/tests/fixtures/longform-samples');
 
-const readSample = <T>(fileName: string): T => {
-  const filePath = path.join(SAMPLE_DIR, fileName);
-  return JSON.parse(readFileSync(filePath, 'utf-8')) as T;
-};
+const readSampleText = (fileName: string): string => readFileSync(path.join(SAMPLE_DIR, fileName), 'utf-8');
+
+const readSampleJson = <T>(fileName: string): T => JSON.parse(readSampleText(fileName)) as T;
 
 let cleanupPaths: string[] = [];
 
@@ -35,19 +34,7 @@ afterEach(() => {
 });
 
 describe('LongformWorkflowEngine', () => {
-  const cleanReview = {
-    checks: [],
-    logicChain: [],
-    mustFix: [],
-    warnings: [],
-    suggestions: [],
-    metrics: {
-      clueCoverage: '100%',
-      redHerringRatio: '0%',
-      wordCountCheck: 'ok',
-      toneConsistency: 'ok',
-    },
-  };
+  const cleanReview = readSampleJson<ReviewReport>('stage6_review_pass.txt');
 
   it('runs through the full stage sequence using sample executors', async () => {
     const events: string[] = [];
@@ -57,21 +44,14 @@ describe('LongformWorkflowEngine', () => {
     process.env.GPT5STORY_LONGFORM_QA_BOARD = tmpQaDir;
     cleanupPaths.push(tmpMdDir, tmpQaDir);
     const planResponses = [
-      readFileSync(path.join(SAMPLE_DIR, 'stage1_miracle.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage2a_cast_props.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage2b_clues.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage3_structure.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage4_scenecards.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage5_longform.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage7_polish.txt'), 'utf-8'),
-      JSON.stringify({
-        score: 8.5,
-        verdict: 'pass',
-        strengths: ['结构严密', '线索前置充分'],
-        issues: [],
-        blockingReasons: [],
-        recommendations: ['针对动机曲线再做一次读者口播测试'],
-      }),
+      readSampleText('stage1_miracle.txt'),
+      readSampleText('stage2a_cast_props.txt'),
+      readSampleText('stage2b_clues.txt'),
+      readSampleText('stage3_structure.txt'),
+      readSampleText('stage4_scenecards.txt'),
+      readSampleText('stage5_longform.txt'),
+      readSampleText('stage7_polish.txt'),
+      readSampleText('quality_evaluation_pass.txt'),
     ];
     const workflow = createLongformWorkflow({
       llm: createStubLlm({ planResponses }),
@@ -82,6 +62,8 @@ describe('LongformWorkflowEngine', () => {
 
     const result = await workflow.invoke({ instructions: '生成侦探小说', overrides: { stage6Review: cleanReview } });
 
+    expect(result.traceId).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(new Date(result.createdAt).toString()).not.toBe('Invalid Date');
     const projectCard = result.artifacts.stage0ProjectInit as ProjectCard;
     expect(projectCard.projectId).toBeDefined();
     expect(projectCard.definitionOfDone.length).toBeGreaterThan(0);
@@ -114,23 +96,16 @@ describe('LongformWorkflowEngine', () => {
   });
 
   it('retries stage execution when executor fails initially', async () => {
-    const sampleProjectCard = readSample<ProjectCard>('stage0_project_card.txt');
+    const sampleProjectCard = readSampleJson<ProjectCard>('stage0_project_card.txt');
     const planResponses = [
-      readFileSync(path.join(SAMPLE_DIR, 'stage1_miracle.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage2a_cast_props.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage2b_clues.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage3_structure.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage4_scenecards.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage5_longform.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage7_polish.txt'), 'utf-8'),
-      JSON.stringify({
-        score: 8.1,
-        verdict: 'pass',
-        strengths: ['流程通过样例'],
-        issues: [],
-        blockingReasons: [],
-        recommendations: [],
-      }),
+      readSampleText('stage1_miracle.txt'),
+      readSampleText('stage2a_cast_props.txt'),
+      readSampleText('stage2b_clues.txt'),
+      readSampleText('stage3_structure.txt'),
+      readSampleText('stage4_scenecards.txt'),
+      readSampleText('stage5_longform.txt'),
+      readSampleText('stage7_polish.txt'),
+      readSampleText('quality_evaluation_pass.txt'),
     ];
     const spy = vi.fn()
       .mockRejectedValueOnce(new Error('temporary'))
@@ -145,6 +120,7 @@ describe('LongformWorkflowEngine', () => {
 
     const result = await workflow.invoke({ instructions: '生成侦探小说', overrides: { stage6Review: cleanReview } });
 
+    expect(result.traceId).toMatch(/^[0-9a-f-]{36}$/i);
     expect(spy).toHaveBeenCalledTimes(2);
     const stage0 = result.stages.find((state) => state.stage === 'stage0ProjectInit');
     expect(stage0?.status).toBe('completed');
@@ -153,8 +129,8 @@ describe('LongformWorkflowEngine', () => {
 
   it('throws when a dependent stage fails', async () => {
     const planResponses = [
-      readFileSync(path.join(SAMPLE_DIR, 'stage1_miracle.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage2a_cast_props.txt'), 'utf-8'),
+      readSampleText('stage1_miracle.txt'),
+      readSampleText('stage2a_cast_props.txt'),
       // stage2b will throw, but subsequent stages won't execute
     ];
 
@@ -176,54 +152,21 @@ describe('LongformWorkflowEngine', () => {
     process.env.GPT5STORY_LONGFORM_MD_OUT = tmpMdDir;
     process.env.GPT5STORY_LONGFORM_QA_BOARD = tmpQaDir;
     cleanupPaths.push(tmpMdDir, tmpQaDir);
-    const failingReview = JSON.stringify({
-      checks: [],
-      logicChain: [],
-      mustFix: ['补充镜像伏笔描写'],
-      warnings: [],
-      suggestions: ['强调钟声与滑盖的因果关系'],
-      metrics: {
-        clueCoverage: '待补充',
-        redHerringRatio: '可接受',
-        wordCountCheck: 'ok',
-        toneConsistency: 'ok',
-      },
-    });
-
-    const passingReview = JSON.stringify({
-      checks: [],
-      logicChain: [],
-      mustFix: [],
-      warnings: [],
-      suggestions: ['保持章节节奏'],
-      metrics: {
-        clueCoverage: '100%',
-        redHerringRatio: '均衡',
-        wordCountCheck: 'ok',
-        toneConsistency: 'ok',
-      },
-    });
-
-    const evaluation = JSON.stringify({
-      score: 8.8,
-      verdict: 'pass',
-      strengths: ['mustFix 修复后逻辑自洽'],
-      issues: [],
-      blockingReasons: [],
-      recommendations: ['上线前再跑一次人工校对'],
-    });
+    const failingReview = readSampleText('stage6_review_mustfix.txt');
+    const passingReview = readSampleText('stage6_review_pass.txt');
+    const evaluation = readSampleText('quality_evaluation_pass.txt');
 
     const planResponses = [
-      readFileSync(path.join(SAMPLE_DIR, 'stage1_miracle.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage2a_cast_props.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage2b_clues.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage3_structure.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage4_scenecards.txt'), 'utf-8'),
-      readFileSync(path.join(SAMPLE_DIR, 'stage5_longform.txt'), 'utf-8'),
+      readSampleText('stage1_miracle.txt'),
+      readSampleText('stage2a_cast_props.txt'),
+      readSampleText('stage2b_clues.txt'),
+      readSampleText('stage3_structure.txt'),
+      readSampleText('stage4_scenecards.txt'),
+      readSampleText('stage5_longform.txt'),
       failingReview,
-      readFileSync(path.join(SAMPLE_DIR, 'stage5_longform.txt'), 'utf-8'),
+      readSampleText('stage5_longform.txt'),
       passingReview,
-      readFileSync(path.join(SAMPLE_DIR, 'stage7_polish.txt'), 'utf-8'),
+      readSampleText('stage7_polish.txt'),
       evaluation,
     ];
 
@@ -233,6 +176,7 @@ describe('LongformWorkflowEngine', () => {
 
     const result = await workflow.invoke({ instructions: '生成侦探小说' });
 
+    expect(result.traceId).toMatch(/^[0-9a-f-]{36}$/i);
     const stage5State = result.stages.find((state) => state.stage === 'stage5LongformDraft');
     const stage6State = result.stages.find((state) => state.stage === 'stage6Review');
 

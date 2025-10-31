@@ -1,0 +1,50 @@
+{
+  "checks": [
+    {
+      "rule": "定義化完成度：Definition of Done 全項核對",
+      "status": "pass",
+      "detail": "字數 5k ± 10%，讀者挑戰與公平遊戲清單完整呈現。",
+      "evidence": ["DoD-1", "DoD-3", "DoD-5"]
+    },
+    {
+      "rule": "線索覆蓋",
+      "status": "pass",
+      "detail": "c01-c05 全數在第5章前曝光並於終章回收。",
+      "evidence": ["c01", "c02", "c03", "c04", "c05"]
+    },
+    {
+      "rule": "語體一致性",
+      "status": "pass",
+      "detail": "蛋蛋第一人稱口吻穩定，僅在讀者挑戰時轉為列表陳述。",
+      "evidence": ["chapter-1", "chapter-6"]
+    }
+  ],
+  "logicChain": [
+    {
+      "step": 1,
+      "claim": "顧臨川可遠程啟動滑蓋",
+      "supportedBy": ["c02", "c03", "timeline-22:59"]
+    },
+    {
+      "step": 2,
+      "claim": "紙飛機配重可覆蓋鐘聲噪音",
+      "supportedBy": ["c03", "scene5", "act2"]
+    },
+    {
+      "step": 3,
+      "claim": "懷表停秒製造死亡時間誤差",
+      "supportedBy": ["c05", "lab-report-01"]
+    }
+  ],
+  "mustFix": [],
+  "warnings": [],
+  "suggestions": [
+    "可補寫顧臨川的心理緩衝段落，讓轉折更絲滑。"
+  ],
+  "metrics": {
+    "clueCoverage": "100%",
+    "redHerringRatio": "1:5",
+    "wordCountCheck": "ok",
+    "toneConsistency": "ok"
+  }
+}

@@ -3,7 +3,6 @@
   "files": [],
   "references": [
     { "path": "packages/shared" },
-    { "path": "packages/workflow" },
-    { "path": "apps/api" }
+    { "path": "packages/workflow" }
   ]
 }

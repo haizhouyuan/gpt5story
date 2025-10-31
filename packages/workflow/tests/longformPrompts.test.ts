@@ -43,7 +43,7 @@ describe('longform prompt builders', () => {
       castAndProps: data.castAndProps,
       clueMatrix: data.sampleStructure?.clueMatrix ?? { clueMatrix: [], redHerrings: [], timelineAnchors: [], fairnessSummary: { clueCount: 0, redHerringRatio: '0%', checks: [], risks: [] } },
     });
-    expect(stage3.system).toContain('章节数控制在 6–7 章');
+    expect(stage3.system).toContain('章节数量建议 6–10 章');
 
     const structure: any = {
       acts: [{ act: 1, title: 'Act1', purpose: 'purpose', turningPoint: 'tp', beats: ['b1', 'b2', 'b3'] }],
@@ -86,7 +86,7 @@ describe('longform prompt builders', () => {
       scenes: sceneDesign,
       clueMatrix,
     });
-    expect(stage5.system).toContain('总字数控制在 4800–5200');
+    expect(stage5.system).toContain('建議總字數落在 4000–9000 字');
 
     const draftOutput = {
       chapterDrafts: [{ chapter: 1, title: '章1', pov: '蛋蛋', wordCount: 800, text: '正文【CL01】' }],

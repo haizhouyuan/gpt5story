@@ -1,0 +1,20 @@
+{
+  "projectId": "sample-project",
+  "titleCandidates": ["霧夜鐘樓的謎案", "鐘聲中的暗影", "紙飛機與滑蓋密室"],
+  "series": "蛋蛋偵探事件簿",
+  "genreTags": ["本格", "少年視角"],
+  "themes": ["鐘樓", "機械", "霧夜"],
+  "targetWordCount": 5000,
+  "definitionOfDone": [
+    "字數 4800-5200",
+    "必須提供讀者挑戰",
+    "案件閉環並回收所有線索"
+  ],
+  "risks": [
+    { "id": "R1", "risk": "密室手法過於複雜", "mitigation": "以插圖輔助解說" }
+  ],
+  "successMetrics": [
+    { "metric": "伏筆回收率", "target": "≥95%" },
+    { "metric": "口吻一致性", "target": "≥4/5" }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "clueMatrix": [
+    {
+      "id": "c01",
+      "category": "物證",
+      "surfaceMeaning": "門外只有守塔人鑰匙，沒有外力痕跡",
+      "realMeaning": "滑蓋遮住了真正的鑰匙孔，鑰匙從未被旋轉",
+      "firstAppearance": "第1章直播介紹鐘門",
+      "revealPoint": "第7章復原機關",
+      "senses": ["視覺", "觸覺"],
+      "linksToMechanism": ["滑蓋遮挡钥匙孔"]
+    },
+    {
+      "id": "c02",
+      "category": "人證",
+      "surfaceMeaning": "顧臨川直播時不停擦汗",
+      "realMeaning": "他剛從竖井回來，手上殘留糖膠與紙灰",
+      "firstAppearance": "第1章直播鏡頭",
+      "revealPoint": "第5章蛋蛋對質",
+      "senses": ["嗅覺", "視覺"],
+      "linksToMechanism": ["纸飞机载重下坠", "怀表停秒伪造时间"]
+    },
+    {
+      "id": "c03",
+      "category": "聲音",
+      "surfaceMeaning": "整點鐘聲一如往常",
+      "realMeaning": "第三聲時金屬震動被掩蓋，線材振動聲未被觀眾察覺",
+      "firstAppearance": "第1章直播聲音記錄",
+      "revealPoint": "第6章重播時段燃指出異常頻率",
+      "senses": ["聽覺"],
+      "linksToMechanism": ["钟声掩护噪音"]
+    },
+    {
+      "id": "c04",
+      "category": "物證",
+      "surfaceMeaning": "門邊木飾有微小刮痕",
+      "realMeaning": "尼龍線從暗槽穿出時留下磨痕，證明有外部機關",
+      "firstAppearance": "第2章蛋蛋巡查門框",
+      "revealPoint": "第7章拆解門飾",
+      "senses": ["視覺", "觸覺"],
+      "linksToMechanism": ["滑盖遮挡钥匙孔"]
+    },
+    {
+      "id": "c05",
+      "category": "時間線",
+      "surfaceMeaning": "懷表指向 10:57 停止",
+      "realMeaning": "糖膠阻擋擺輪，死亡時間實際落在 11:03 前後",
+      "firstAppearance": "第1章現場物證",
+      "revealPoint": "第6章化驗報告",
+      "senses": ["視覺", "嗅覺"],
+      "linksToMechanism": ["怀表停秒伪造时间"]
+    }
+  ],
+  "redHerrings": [
+    {
+      "id": "h01",
+      "type": "誤導線索",
+      "setup": "段燃提前測試門磁延遲被拍到",
+      "truth": "門磁延遲只是直播效果，與真正的機關無關",
+      "counterScene": "第5章蛋蛋調整門磁證明延遲可手動設定"
+    }
+  ],
+  "timelineAnchors": [
+    {
+      "time": "22:30",
+      "chapterRef": 2,
+      "event": "顧臨川以安全為由要求林苡安上塔巡查",
+      "evidence": "對話紀錄與直播預告",
+      "relevance": "證明他掌握塔內動向並有提前部署時間"
+    },
+    {
+      "time": "22:59",
+      "chapterRef": 4,
+      "event": "直播畫面短暫切換到外牆",
+      "evidence": "直播緩存檔案",
+      "relevance": "顧臨川趁鏡頭轉移操作紙飛機"
+    },
+    {
+      "time": "23:03",
+      "chapterRef": 6,
+      "event": "鐘聲尾音後傳來輕微金屬響",
+      "evidence": "段燃的頻譜分析",
+      "relevance": "對應滑蓋回位聲，確定機關啟動時刻"
+    }
+  ],
+  "fairnessSummary": {
+    "clueCount": 5,
+    "redHerringRatio": "1:5",
+    "checks": [
+      "至少四條線索在前半段出現",
+      "關鍵機關皆有可觀察到的物理痕跡",
+      "讀者可由時間線推翻守塔人自殺說"
+    ],
+    "risks": [
+      "若未突出暗槽痕跡，讀者可能忽略滑蓋線索",
+      "糖膠停秒需附加化學說明避免違和"
+    ]
+  }
+}

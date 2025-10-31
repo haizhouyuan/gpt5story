@@ -1,0 +1,101 @@
+{
+  "sceneCards": [
+    {
+      "sceneId": "sc-1",
+      "chapter": 1,
+      "pov": "蛋蛋",
+      "goal": "確認直播流程並了解各角色動機",
+      "conflict": "顧臨川急於展現節目效果，忽略安全流程",
+      "evidenceOut": ["c01"],
+      "redHerringsOut": [],
+      "sensoryDetail": "潮濕木板散發松油味，鐘聲練習的低頻在胸腔震蕩。",
+      "emotionBeat": "蛋蛋為能上直播而緊張興奮",
+      "exitHook": "顧臨川把紙飛機折壞後扔給蛋蛋",
+      "wordQuota": 700
+    },
+    {
+      "sceneId": "sc-2",
+      "chapter": 2,
+      "pov": "蛋蛋",
+      "goal": "跟拍守塔人巡視並記錄塔內細節",
+      "conflict": "林苡安對蛋蛋的問題保持沉默，顧臨川催促時間",
+      "evidenceOut": ["c04", "c05"],
+      "redHerringsOut": [],
+      "sensoryDetail": "門縫吹出冷風，尼龍線上蠟質光澤在手電下閃爍。",
+      "emotionBeat": "蛋蛋感到不安，認為有東西被刻意藏起來",
+      "exitHook": "直播畫面突然切到塔外，聊天室刷屏問發生什麼事",
+      "wordQuota": 800
+    },
+    {
+      "sceneId": "sc-3",
+      "chapter": 3,
+      "pov": "蛋蛋",
+      "goal": "處理案發後的混亂並建立封鎖線",
+      "conflict": "觀眾要求直播繼續，顧臨川怕停播失去熱度",
+      "evidenceOut": ["c02", "h01"],
+      "redHerringsOut": ["h01"],
+      "sensoryDetail": "門內傳來倒地的悶響，鐘聲餘音還在空中打轉。",
+      "emotionBeat": "蛋蛋感到責任壓力，決定擔任臨時主持",
+      "exitHook": "蛋蛋宣布要讓觀眾一起查出真相",
+      "wordQuota": 900
+    },
+    {
+      "sceneId": "sc-4",
+      "chapter": 4,
+      "pov": "蛋蛋",
+      "goal": "尋找遠程操作的證據",
+      "conflict": "段燃堅持竖井風速不可能讓紙飛機成功",
+      "evidenceOut": ["c02", "c03"],
+      "redHerringsOut": [],
+      "sensoryDetail": "竖井內潮濕的霉味和微風聲混合，硬幣敲擊導環發出微響。",
+      "emotionBeat": "蛋蛋靈光一閃，決定親自折出配重紙飛機",
+      "exitHook": "顧臨川阻止他拆門飾，語氣異常緊張",
+      "wordQuota": 900
+    },
+    {
+      "sceneId": "sc-5",
+      "chapter": 5,
+      "pov": "蛋蛋",
+      "goal": "在直播中重演機關說服觀眾",
+      "conflict": "紙飛機第一次試飛卡在竖井中，觀眾質疑理論",
+      "evidenceOut": ["c01", "c04"],
+      "redHerringsOut": [],
+      "sensoryDetail": "鐘聲擴音器發出的低頻震得竖井纜線晃動，硬幣落地清脆。",
+      "emotionBeat": "蛋蛋咬牙調整配重，決定賭上名聲",
+      "exitHook": "紙飛機成功拉動滑蓋，直播間歡呼",
+      "wordQuota": 950
+    },
+    {
+      "sceneId": "sc-6",
+      "chapter": 6,
+      "pov": "蛋蛋",
+      "goal": "揭示真相並提出讀者挑戰",
+      "conflict": "顧臨川想將事故定義為意外以保名譽",
+      "evidenceOut": ["c05"],
+      "redHerringsOut": [],
+      "sensoryDetail": "霧氣從窗縫湧入，濕冷附著在金屬上，糖膠的甜味變得刺鼻。",
+      "emotionBeat": "蛋蛋面對成人權威仍堅定說出推理",
+      "exitHook": "蛋蛋留下一句“第三聲鐘響時你在做什麼？”",
+      "wordQuota": 950
+    }
+  ],
+  "draftFragments": [
+    {
+      "chapter": 1,
+      "pov": "蛋蛋",
+      "approxWords": 120,
+      "text": "鐘聲還沒響，我已經先在腦子裡畫好所有線。顧臨川叔叔說畫工程圖要先想象力。我偏要用彩色筆，把每個人身上的線都標起來。"
+    },
+    {
+      "chapter": 5,
+      "pov": "蛋蛋",
+      "approxWords": 140,
+      "text": "紙飛機第一次卡住的那秒，我聽見聊天室裡刷了一排“翻車”。我吸了一口霧氣，把硬幣又往前推了一毫米。第三聲鐘響時，尼龍線像琴弦一樣啷地響了一下。"
+    }
+  ],
+  "continuityChecks": [
+    "確認每章至少曝光一處線索或紅鯡魚",
+    "確保段燃提供的技術信息與最終推理一致",
+    "讀者挑戰前回顧所有 clue id 方便對照"
+  ]
+}

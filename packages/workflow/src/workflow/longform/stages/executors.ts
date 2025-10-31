@@ -35,9 +35,9 @@ const DEFAULT_PROJECT_CARD = projectCardSchema.parse({
   series: '蛋蛋侦探事件簿',
   genreTags: ['本格', '少年视角', '温情'],
   themes: ['雾夜', '怀表', '糖纸'],
-  targetWordCount: 5000,
+  targetWordCount: 6500,
   definitionOfDone: [
-    '成稿字数4800-5200字',
+    '成稿字数4000-9000字，可因剧情需要上下浮动（±10%）',
     '第一人称“蛋蛋”叙述，全程口吻统一',
     '案件闭环：凶手/动机/手法/时间线/证据链清晰可回溯',
     '有效线索≥8处且前半程露出≥4处',
@@ -51,7 +51,7 @@ const DEFAULT_PROJECT_CARD = projectCardSchema.parse({
     { id: 'R4', risk: '校园题材触及敏感或阴暗氛围过重', mitigation: '降低暴力与阴暗描写，强调温情动机与成长收束' },
   ],
   successMetrics: [
-    { metric: '字数达标', target: '5000±10%' },
+    { metric: '字数达标', target: '4000-9000（±10%可接受）' },
     { metric: '伏笔回收率', target: '≥95%' },
     { metric: '读者提前识破率', target: '20%-40%（内测样本≥5人）' },
     { metric: '口吻一致性评分', target: '≥4/5（读者主观评价）' },
@@ -193,7 +193,28 @@ export const runStage5LongformDraft: LongformStageExecutor<'stage5LongformDraft'
       }
       : undefined,
   });
-  return invokeAndParse(runtime, 'stage5LongformDraft', prompt, longformDraftSchema);
+  const draft = await invokeAndParse(runtime, 'stage5LongformDraft', prompt, longformDraftSchema);
+  const totalWordCount = draft.chapterDrafts.reduce((sum, chapter) => sum + (chapter.wordCount ?? 0), 0);
+  const averageChapterLength = draft.chapterDrafts.length > 0
+    ? Math.round(totalWordCount / draft.chapterDrafts.length)
+    : 0;
+
+  return {
+    ...draft,
+    appendices: {
+      clueRecap: draft.appendices?.clueRecap ?? [],
+      timelineRecap: draft.appendices?.timelineRecap ?? [],
+      revisionNotes: draft.appendices?.revisionNotes ?? [],
+    },
+    metrics: {
+      totalWordCount: draft.metrics?.totalWordCount && draft.metrics.totalWordCount > 0
+        ? draft.metrics.totalWordCount
+        : totalWordCount,
+      averageChapterLength: draft.metrics?.averageChapterLength && draft.metrics.averageChapterLength > 0
+        ? draft.metrics.averageChapterLength
+        : averageChapterLength,
+    },
+  };
 };
 
 export const runStage6Review: LongformStageExecutor<'stage6Review'> = async (

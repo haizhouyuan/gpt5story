@@ -30,8 +30,10 @@ export const buildStage1MiraclePrompt = (input: Stage1MiraclePromptInput): Promp
     '要求：',
     '  - 诡计需包含“钟楼密室 + 消失的钥匙孔 + 纸飞机”等组合，保证单人可执行，并考虑音/光/气流等因素。',
     '  - `mechanismChain` 至少 4 个节点，需描述受力/传动路径，并给出可观察的痕迹。',
-    '  - `toleranceNotes` 列出参数范围与备选方案。',
+    '  - `toleranceNotes` 列出关键参数范围与备选方案，控制在 6 行以内。',
     '  - 伏笔要点需符合项目卡的主题意象。',
+    '  - 所有字符串最长不超过 120 个汉字或 240 个字符；`evidenceHooks` / `replicationSteps` / `foreshadowingIdeas` 每项最多 3 条；描述尽量短句、避免冗长解释。',
+    '  - 如果有公式或数据，请直接写在同一行，避免多段扩写。',
   ].join(' ');
 
   const userSections = [
@@ -51,4 +53,3 @@ export const buildStage1MiraclePrompt = (input: Stage1MiraclePromptInput): Promp
     user: userSections.join('\n'),
   };
 };
-

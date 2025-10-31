@@ -1,6 +1,6 @@
 # 长篇侦探小说工作流阶段数据字典（Stage0 基线）
 
-本文件记录 `experiments/longform-run-v2` 最新一次完整手动流水线的阶段产物结构，用于后续在 LangChain 工作流中固化 Schema、生成器以及校验器。每个阶段均列出输出文件、核心字段、字段说明与后续处理注意事项。
+本文件记录 `packages/workflow/tests/fixtures/longform-samples` 目录下的标准样本数据结构，用于在 LangGraph 工作流中固化 Schema、生成器以及校验器。每个阶段均列出输出文件、核心字段、字段说明与后续处理注意事项。
 
 > 所有示例均来自 2025-10-27 的 v2 样本数据。正式工作流需要将下列结构转为 Pydantic Schema 并在阶段执行时强制校验。
 
@@ -8,7 +8,7 @@
 
 ## Stage0 – Project Card（项目卡）
 
-- **文件**：`experiments/longform-run-v2/stage0_project_card.txt`
+- **文件**：`packages/workflow/tests/fixtures/longform-samples/stage0_project_card.txt`
 - **顶层结构**：JSON 对象 `ProjectCard`
 - **字段**：
   | 字段 | 类型 | 说明 |
@@ -53,7 +53,7 @@
   - `characters`: `Character[]`（含 `id`, `name`, `role`, `motiveOrSecret`, `firstHint`）。
   - `props`: `Prop[]`（含 `id`, `name`, `category`, `description`, `plantChapterHint`, `payoffChapterHint`）。
 
-> **注意**：角色 ID 采用 `cXX`，道具/证物 ID 采用 `pXX`。Stage4/Stage5 需在 `clueDrops` 中引用这些 ID。
+> **注意**：样本沿用 `cXX`/`pXX` 命名，正式产线可视需要扩展；Stage4/Stage5 需在 `clueDrops` 中引用这些 ID。
 
 ---
 
@@ -67,7 +67,7 @@
   - `timelineAnchors`: `TimelineAnchor[]`，字段 `time`、`chapterRef`、`event`、`evidence`、`relevance`。
   - `fairnessSummary`: `{ clueCount, redHerringRatio, checks[], risks[] }`。
 
-> **注意**：`linksToMechanism` 中需显式覆盖“导向环/滑盖”“投毒链”“镜像提示”等关键节点，后续校验将检测这些条目的存在。
+> **注意**：样本以 `c01`…`c05` 命名并透过 `linksToMechanism` 关联 Stage1 节点；校验逻辑应保证所有核心节点均被覆盖。
 
 ---
 
@@ -93,7 +93,7 @@
   - `draftFragments`: `DraftFragment[]`（`chapter`, `pov`, `approxWords`, `text`）。
   - `continuityChecks`: `string[]`。
 
-> **注意**：`evidenceOut`/`redHerringsOut` 应以 `CLXX`/`RH-XX`/`pXX`/`tXX` 等 ID 命名，方便 Stage5 校验引用完整性。
+> **注意**：`evidenceOut`/`redHerringsOut` 需引用 Stage2/Stage2B 中的 ID；样本使用 `c01` 等格式，保持前后一致即可。
 
 ---
 
@@ -105,13 +105,13 @@
   - `appendices`: `{ clueRecap[], timelineRecap[], revisionNotes[] }`。
   - `metrics`: `{ totalWordCount, averageChapterLength }`。
 
-> **注意**：`text` 内使用 `【线索ID】`、`【提示】` 标签；`appendices` 将在 Stage7 Markdown 中附录。
+> **注意**：样本以内嵌叙述提示线索，`appendices` 列出正式的线索/时间线 recap，Stage7 Markdown 会引用这些信息。
 
 ---
 
 ## Stage6 – Review Report（自动审校）
 
-- **文件**：`stage6_review.txt`
+- **文件**：`stage6_review_pass.txt`（另有 `stage6_review_mustfix.txt` 示范回退场景）
 - **结构**：
   - `checks`: `CheckItem[]`，字段 `rule`, `status (pass|warn|fail)`, `detail`, `evidence[]`。
   - `logicChain`: `LogicStep[]`，包含 `step`, `claim`, `supportedBy[]`。
@@ -126,20 +126,20 @@
 
 ## Stage7 – Polished Draft & Markdown 出稿
 
-- **文件**：`stage7_polish.txt`, `story.md`
+- **文件**：`stage7_polish.txt`；Markdown 成品会在运行时依 `GPT5STORY_LONGFORM_MD_OUT` 输出目录生成
 - **结构**：
   - `finalDraft`: `{ totalWordCount, chapters[] }`，其中 `chapters` 仍沿用 Stage5 结构但文本已润色。
   - `appliedChanges`: `string[]`
   - `nextSteps`: `string[2]`
   - `story.md`: Markdown 文档，含 6 章正文 + “附录：线索清单 / 时间线回顾 / 修订备注”。
 
-> **注意**：后续流程需在 Stage7 完成后自动写入 `.md` 并保存对应版本号。
+> **注意**：设置 `GPT5STORY_LONGFORM_MD_OUT` 时，Stage7 会依据样本结构写入 Markdown 并生成版本化文件名。
 
 ---
 
 ## 评估结果（Quality Gate）
 
-- **文件**：`story_eval.json`
+- **文件**：`quality_evaluation_pass.txt`
 - **结构**：`EvaluationReport`
   | 字段 | 说明 |
   | --- | --- |
@@ -157,4 +157,3 @@
 2. 在阶段执行时保存 JSON 至 Artifact Store，并提供检索接口。
 3. 对 Stage2B/Stage3/Stage4/Stage5/Stage7 重点字段建立自动校验（例如引用 ID 是否存在、wordBudget 总和、线索覆盖率等）。
 4. 生成 `schema-tests`（待 Stage0 Step3）以确保历史产物符合 Schema。 
-
