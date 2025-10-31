@@ -13,3 +13,9 @@ experiments/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Project artifacts and runtime logs
+logs/
+*.log
+openrouter_activity_*.csv
+tests/vitest-junit.xml
